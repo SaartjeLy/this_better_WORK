@@ -91,10 +91,13 @@ int main(int argc, char* argv[]) {
 
     std::vector<std::string> block_numbers = get_all_block_numbers(path);
 
-    for (std::string block : block_numbers) {
+    taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block) {
         std::string block_data = get_block_data(path, block);
         std::cout << block << ": " << block_data.substr(0,8)<< std::endl;
-    }
+    });
+
+    executor.run(taskflow).wait();
+    taskflow.clear();
 
     return 0;
 }
