@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <time.h>
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
 
@@ -15,16 +16,15 @@ tf::Executor executor;
  * @param upper_case bool for whether alpha chars should be in uppercase or not
  * @return std::string 
  */
-std::string ToHex(const std::string& s, bool upper_case) {
-    std::ostringstream ret;
+std::string ToHex(char* bin_string, int size) {
+    std::ostringstream hex_string;
 
-    for (std::string::size_type i = 0; i < s.length(); ++i)
-    {
-        int z = s[i]&0xff;
-        ret << std::hex << std::setfill('0') << std::setw(2) << (upper_case ? std::uppercase : std::nouppercase) << z;
+    for(int i=0; i<size; i++) {
+        int z = bin_string[i] & 0xff;
+        hex_string << std::hex << std::setfill('0') << std::setw(2) << z;
     }
 
-    return ret.str();
+    return hex_string.str();
 }
 
 /**
@@ -52,8 +52,7 @@ std::string get_block_data(std::string path, std::string block) {
     file.read(buffer, size);
     file.close();
 
-    std::string hex_string_of_data = ToHex(std::string(buffer, size), true);
-
+    std::string hex_string_of_data = ToHex(buffer, size);
     return hex_string_of_data;
 }
 
@@ -71,7 +70,7 @@ std::vector<std::string> get_all_block_numbers(std::string path) {
         std::string file_path = entry.path();
 
         // verifying the file is a .dat BLOCK file 
-        std::size_t pos = file_path.find("blk");
+        std::size_t pos = file_path.find("blk0000");
 
         if (pos != std::string::npos) {
             block_numbers.push_back(file_path.substr(path.length(), file_path.length()));
@@ -81,6 +80,15 @@ std::vector<std::string> get_all_block_numbers(std::string path) {
     return block_numbers;
 }
 
+/**
+ * @brief reads some number of bytes from the block data, starting at a particular
+ *        pointer, into a buffer then converts this the big-endian format in O(n) time
+ * 
+ * @param from pointer to start reading from
+ * @param bytes number of bytes to read
+ * @param block_data the block data to read from
+ * @return std::string 
+ */
 std::string read_bytes(int from, int bytes, std::string block_data) {
     std::string byte_string = block_data.substr(from, from+bytes*2);
 
@@ -95,6 +103,12 @@ std::string read_bytes(int from, int bytes, std::string block_data) {
     return big_endian_byte_string;
 }
 
+/**
+ * @brief parses the preamble section of the BSV block and returns a dictionary representation
+ * 
+ * @param block_data the BSV block data
+ * @return std::unordered_map<std::string, std::string> 
+ */
 std::unordered_map<std::string, std::string> parse_preamble(std::string block_data) {
     std::unordered_map<std::string, std::string> preamble;
     preamble["magic_number"] = read_bytes(0,4,block_data);
@@ -103,6 +117,12 @@ std::unordered_map<std::string, std::string> parse_preamble(std::string block_da
     return preamble;
 }
 
+/**
+ * @brief parses the header section of the BSV block and returns a dictionary representation
+ * 
+ * @param block_data the BSV block data
+ * @return std::unordered_map<std::string, std::string> 
+ */
 std::unordered_map<std::string, std::string> parse_header(std::string block_data) {
     std::unordered_map<std::string, std::string> header;
     header["version"] = read_bytes(16,4,block_data);
@@ -115,6 +135,12 @@ std::unordered_map<std::string, std::string> parse_header(std::string block_data
     return header;
 }
 
+/**
+ * @brief parses the entire BSV block into its various sections and returns a dictionary representation
+ * 
+ * @param block_data the BSV block data
+ * @return std::unordered_map<std::string, std::unordered_map<std::string, std::string>> 
+ */
 std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parse_block(std::string block_data) {
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block;
 
@@ -142,6 +168,8 @@ int main(int argc, char* argv[]) {
     std::cout << "finished getting all block numbers!" << std::endl;
     std::cout << std::endl;
     std::cout << "now parsing" << std::endl;
+    time_t start = clock();
+
     taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block_number) {
         std::string block_data = get_block_data(path, block_number);
 
@@ -150,8 +178,11 @@ int main(int argc, char* argv[]) {
 
     executor.run(taskflow).wait();
     taskflow.clear();
+    
+    time_t end = clock();
+    std::cout << "finished parsing!\n" << std::endl;
 
-    std::cout << "finished parsing!" << std::endl;
+    std::cout << "It took " << (double)(end-start)/CLOCKS_PER_SEC/10 << "s to parse " << block_numbers.size() << " blocks!" << std::endl;
 
     return 0;
 }
