@@ -81,6 +81,54 @@ std::vector<std::string> get_all_block_numbers(std::string path) {
     return block_numbers;
 }
 
+std::string read_bytes(int from, int bytes, std::string block_data) {
+    std::string byte_string = block_data.substr(from, from+bytes*2);
+
+    // convert to big-endian format in O(n) time
+    std::string big_endian_byte_string = "";
+    int ptr = bytes*2 - 1;
+    while (ptr >= from) {
+        big_endian_byte_string += byte_string.substr(ptr-1, 2);
+        ptr -= 2;
+    }
+    
+    return big_endian_byte_string;
+}
+
+std::unordered_map<std::string, std::string> parse_preamble(std::string block_data) {
+    std::unordered_map<std::string, std::string> preamble;
+    preamble["magic_number"] = read_bytes(0,4,block_data);
+    preamble["block_size"] = read_bytes(8,4,block_data);
+
+    return preamble;
+}
+
+std::unordered_map<std::string, std::string> parse_header(std::string block_data) {
+    std::unordered_map<std::string, std::string> header;
+    header["version"] = read_bytes(16,4,block_data);
+    header["previous_block_hash"] = read_bytes(24,32, block_data);
+    header["merkle_root"] = read_bytes(88, 32, block_data);
+    header["time"] = read_bytes(152, 4, block_data);
+    header["bits"] = read_bytes(160, 4, block_data);
+    header["nonce"] = read_bytes(168,4, block_data);
+ 
+    return header;
+}
+
+std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parse_block(std::string block_data) {
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block;
+
+    std::unordered_map<std::string, std::string> preamble = parse_preamble(block_data);
+    std::unordered_map<std::string, std::string> header = parse_header(block_data);
+
+    block["premable"] = preamble;
+    block["header"] = header;
+
+    //TODO: implement
+
+    return block;
+}
+
 int main(int argc, char* argv[]) {
     if(argc < 2) {
         perror("Provide path to block files as an arg when running main.o");
@@ -89,15 +137,21 @@ int main(int argc, char* argv[]) {
 
     std::string path = argv[1];
 
+    std::cout << "getting all block numbers!" << std::endl;
     std::vector<std::string> block_numbers = get_all_block_numbers(path);
+    std::cout << "finished getting all block numbers!" << std::endl;
+    std::cout << std::endl;
+    std::cout << "now parsing" << std::endl;
+    taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block_number) {
+        std::string block_data = get_block_data(path, block_number);
 
-    taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block) {
-        std::string block_data = get_block_data(path, block);
-        std::cout << block << ": " << block_data.substr(0,8)<< std::endl;
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_block(block_data);
     });
 
     executor.run(taskflow).wait();
     taskflow.clear();
+
+    std::cout << "finished parsing!" << std::endl;
 
     return 0;
 }
