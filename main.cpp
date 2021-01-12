@@ -10,21 +10,23 @@ tf::Taskflow taskflow;
 tf::Executor executor;
 
 /**
- * @brief converts a binary string to a hex string, from https://stackoverflow.com/questions/9621893
+ * @brief converts a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
  * 
- * @param s binary string
- * @param upper_case bool for whether alpha chars should be in uppercase or not
+ * @param binary_string the binary string
+ * @param size the length of the binary string
  * @return std::string 
  */
-std::string ToHex(char* bin_string, int size) {
-    std::ostringstream hex_string;
-
+std::string get_hex(char* binary_string, int size) {
+    char const hex[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+    std::string hex_string;
+    
     for(int i=0; i<size; i++) {
-        int z = bin_string[i] & 0xff;
-        hex_string << std::hex << std::setfill('0') << std::setw(2) << z;
+        const char ch = binary_string[i];
+        hex_string.append(&hex[(ch & 0xF0) >> 4], 1); // append MSH/MSB of current char to hex string
+        hex_string.append(&hex[ch & 0xF], 1); // append LSH/LSB of current char to hex string
     }
 
-    return hex_string.str();
+    return hex_string;
 }
 
 /**
@@ -52,7 +54,8 @@ std::string get_block_data(std::string path, std::string block) {
     file.read(buffer, size);
     file.close();
 
-    std::string hex_string_of_data = ToHex(buffer, size);
+    std::string hex_string_of_data = get_hex(buffer, size);
+    
     return hex_string_of_data;
 }
 
