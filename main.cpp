@@ -3,11 +3,9 @@
 #include <vector>
 #include <unordered_map>
 #include <time.h>
+#include <chrono>
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
-
-tf::Taskflow taskflow;
-tf::Executor executor;
 
 /**
  * @brief converts a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
@@ -159,19 +157,23 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> pa
 }
 
 int main(int argc, char* argv[]) {
+    tf::Taskflow taskflow;
+    tf::Executor executor;
+
     if(argc < 2) {
         perror("Provide path to block files as an arg when running main.o");
         exit(1);
     }
 
     std::string path = argv[1];
+    std::ios_base::sync_with_stdio(false);
 
     std::cout << "getting all block numbers!" << std::endl;
     std::vector<std::string> block_numbers = get_all_block_numbers(path);
     std::cout << "finished getting all block numbers!" << std::endl;
     std::cout << std::endl;
     std::cout << "now parsing" << std::endl;
-    time_t start = clock();
+    auto start = std::chrono::high_resolution_clock::now();
 
     taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block_number) {
         std::string block_data = get_block_data(path, block_number);
@@ -182,10 +184,11 @@ int main(int argc, char* argv[]) {
     executor.run(taskflow).wait();
     taskflow.clear();
     
-    time_t end = clock();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+    
     std::cout << "finished parsing!\n" << std::endl;
-
-    std::cout << "It took " << (double)(end-start)/CLOCKS_PER_SEC/10 << "s to parse " << block_numbers.size() << " blocks!" << std::endl;
+    std::cout << "It took " << duration << "ms to parse " << block_numbers.size() << " blocks!" << std::endl;
 
     return 0;
 }
