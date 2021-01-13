@@ -91,12 +91,12 @@ std::vector<std::string> get_all_block_numbers(std::string path) {
  * @return std::string 
  */
 std::string read_bytes(int from, int bytes, std::string block_data) {
-    std::string byte_string = block_data.substr(from, from+bytes*2);
+    std::string byte_string = block_data.substr(from, bytes*2);
 
     // convert to big-endian format in O(n) time
     std::string big_endian_byte_string = "";
     int ptr = bytes*2 - 1;
-    while (ptr >= from) {
+    while (ptr >= 0) {
         big_endian_byte_string += byte_string.substr(ptr-1, 2);
         ptr -= 2;
     }
