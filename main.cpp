@@ -156,6 +156,11 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> pa
     return block;
 }
 
+/**
+ * @brief prints the bsv block to stdio
+ *  
+ * @param block the unordered map representing the parsed bsv block
+ */
 void pretty_print(std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block) {
     std::cout << "{\n";
     for (auto const& pair : block) {
@@ -168,10 +173,31 @@ void pretty_print(std::unordered_map<std::string, std::unordered_map<std::string
     std::cout << "}\n" << std::endl;
 }
 
-int main(int argc, char* argv[]) {
+/**
+ * @brief parses the bsv blocks and exports to CSV
+ * 
+ * @param path absolute path to the directory holding the .dat bsv block files
+ * @param block_numbers string vector of the .dat filenames
+ */
+void parse_and_export(std::string path, std::vector<std::string> block_numbers) {
     tf::Taskflow taskflow;
     tf::Executor executor;
+    
+    // TODO: init csv here
 
+    taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block_number) {
+        std::string block_data = get_block_data(path, block_number);
+
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_block(block_data);
+
+        // TODO: write to csv file here
+    });
+
+    executor.run(taskflow).wait();
+    taskflow.clear();
+}
+
+int main(int argc, char* argv[]) {
     if(argc < 2) {
         perror("Provide path to block files as an arg when running main.o");
         exit(1);
@@ -182,19 +208,12 @@ int main(int argc, char* argv[]) {
 
     std::cout << "getting all block numbers!" << std::endl;
     std::vector<std::string> block_numbers = get_all_block_numbers(path);
-    std::cout << "finished getting all block numbers!" << std::endl;
-    std::cout << std::endl;
+    std::cout << "finished getting all block numbers!\n" << std::endl;
+
     std::cout << "now parsing" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
-    taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block_number) {
-        std::string block_data = get_block_data(path, block_number);
-
-        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_block(block_data);
-    });
-
-    executor.run(taskflow).wait();
-    taskflow.clear();
+    parse_and_export(path, block_numbers);
     
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
