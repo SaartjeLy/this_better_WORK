@@ -53,7 +53,7 @@ std::string get_block_data(std::string path, std::string block) {
     file.close();
 
     std::string hex_string_of_data = get_hex(buffer, size);
-    
+    free(buffer);
     return hex_string_of_data;
 }
 
