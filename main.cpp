@@ -17,7 +17,7 @@
 std::string get_hex(char* binary_string, int size) {
     char const hex[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
     std::string hex_string;
-    
+
     for(int i=0; i<size; i++) {
         const char ch = binary_string[i];
         hex_string.append(&hex[(ch & 0xF0) >> 4], 1); // append MSH/MSB of current char to hex string
@@ -71,7 +71,7 @@ std::vector<std::string> get_all_block_numbers(std::string path) {
         std::string file_path = entry.path();
 
         // verifying the file is a .dat BLOCK file 
-        std::size_t pos = file_path.find("blk0000");
+        std::size_t pos = file_path.find("blk");
 
         if (pos != std::string::npos) {
             block_numbers.push_back(file_path.substr(path.length(), file_path.length()));
@@ -154,6 +154,18 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> pa
     //TODO: implement
 
     return block;
+}
+
+void pretty_print(std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block) {
+    std::cout << "{\n";
+    for (auto const& pair : block) {
+        std::cout << " {" << pair.first << ":\n";
+        for (auto const& sub_pair : pair.second) {
+            std::cout << "\t{" << sub_pair.first << ": " << sub_pair.second << "}\n";
+        }
+        std::cout << " }" << std::endl;
+    }
+    std::cout << "}\n" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
