@@ -6,6 +6,7 @@
 #include <chrono>
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
+#include "csv_writer.h"
 
 /**
  * @brief converts a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
@@ -183,18 +184,20 @@ void parse_and_export(std::string path, std::vector<std::string> block_numbers) 
     tf::Taskflow taskflow;
     tf::Executor executor;
     
-    // TODO: init csv here
+    CSV_WRITER csv_writer("bitcoinsv.csv"); // create csv file and open file stream
 
     taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block_number) {
         std::string block_data = get_block_data(path, block_number);
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_block(block_data);
 
-        // TODO: write to csv file here
+        csv_writer.write_block(block_number, block); // write block to csv file
     });
 
     executor.run(taskflow).wait();
     taskflow.clear();
+
+    csv_writer.close(); // close the csv file here
 }
 
 int main(int argc, char* argv[]) {
