@@ -3,7 +3,7 @@
 
 CSV_WRITER::CSV_WRITER(std::string filename) : filename(filename) {
     csv_file.open(filename);
-    write_line("block_number, magic_number, block_size, version, previous_block_hash, merkle_root, time, bits, nonce");
+    write_line("block_number,magic_number,block_size,version,previous_block_hash,merkle_root,time,bits,nonce");
 }
 
 /**
