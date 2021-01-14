@@ -149,10 +149,10 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> pa
     std::unordered_map<std::string, std::string> preamble = parse_preamble(block_data);
     std::unordered_map<std::string, std::string> header = parse_header(block_data);
 
-    block["premable"] = preamble;
+    block["preamble"] = preamble;
     block["header"] = header;
 
-    //TODO: implement
+    //TODO: implement the rest of the block parsing
 
     return block;
 }
