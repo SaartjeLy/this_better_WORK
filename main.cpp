@@ -9,7 +9,7 @@
 #include "csv_writer.h"
 
 /**
- * @brief converts a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
+ * @brief uses bit-shifting to convert a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
  * 
  * @param binary_string the binary string
  * @param size the length of the binary string
@@ -29,20 +29,20 @@ std::string get_hex(char* binary_string, int size) {
 }
 
 /**
- * @brief reads all the block data from the binary .dat block file and converts to a hex string
+ * @brief reads all the file data from the binary .dat blk file and converts to a hex string
  * 
  * @param path the absolute path to the relevant directory
- * @param block the name of the block file
+ * @param block the name of the blk file
  * @return std::string 
  */
-std::string get_block_data(std::string path, std::string block) {
+std::string get_file_data(std::string path, std::string file_name) {
     // open file
     std::ifstream file;
-    file.open(path + block, std::ios::ate|std::ios::binary|std::ios::in);
+    file.open(path + file_name, std::ios::ate|std::ios::binary|std::ios::in);
 
     // exit if the file doesn't exist
     if(!file.is_open()) {
-        perror("Error opening block");
+        perror("Error opening file");
         exit(EXIT_FAILURE);
     }
 
@@ -55,6 +55,7 @@ std::string get_block_data(std::string path, std::string block) {
 
     std::string hex_string_of_data = get_hex(buffer, size);
     free(buffer);
+
     return hex_string_of_data;
 }
 
@@ -64,9 +65,9 @@ std::string get_block_data(std::string path, std::string block) {
  * @param path the absolute path to the directory with all the block files
  * @return std::vector<std::string> 
  */
-std::vector<std::string> get_all_block_numbers(std::string path) {
+std::vector<std::string> get_all_file_names(std::string path) {
     // reads all files in the blocks directory and returns an array of present blkXXXXX.dat filenames
-    std::vector<std::string> block_numbers;
+    std::vector<std::string> file_names;
 
     for(const auto entry : std::experimental::filesystem::directory_iterator(path)) {
         std::string file_path = entry.path();
@@ -75,11 +76,11 @@ std::vector<std::string> get_all_block_numbers(std::string path) {
         std::size_t pos = file_path.find("blk");
 
         if (pos != std::string::npos) {
-            block_numbers.push_back(file_path.substr(path.length(), file_path.length()));
+            file_names.push_back(file_path.substr(path.length(), file_path.length()));
         }
     }
 
-    return block_numbers;
+    return file_names;
 }
 
 /**
@@ -143,11 +144,11 @@ std::unordered_map<std::string, std::string> parse_header(std::string block_data
  * @param block_data the BSV block data
  * @return std::unordered_map<std::string, std::unordered_map<std::string, std::string>> 
  */
-std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parse_block(std::string block_data) {
+std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parse_file(std::string file_data) {
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block;
 
-    std::unordered_map<std::string, std::string> preamble = parse_preamble(block_data);
-    std::unordered_map<std::string, std::string> header = parse_header(block_data);
+    std::unordered_map<std::string, std::string> preamble = parse_preamble(file_data);
+    std::unordered_map<std::string, std::string> header = parse_header(file_data);
 
     block["preamble"] = preamble;
     block["header"] = header;
@@ -180,18 +181,18 @@ void pretty_print(std::unordered_map<std::string, std::unordered_map<std::string
  * @param path absolute path to the directory holding the .dat bsv block files
  * @param block_numbers string vector of the .dat filenames
  */
-void parse_and_export(std::string path, std::vector<std::string> block_numbers) {
+void parse_and_export(std::string path, std::vector<std::string> file_names) {
     tf::Taskflow taskflow;
     tf::Executor executor;
     
     CSV_WRITER csv_writer("bitcoinsv.csv"); // create csv file and open file stream
 
-    taskflow.for_each(block_numbers.begin(), block_numbers.end(), [&] (std::string block_number) {
-        std::string block_data = get_block_data(path, block_number);
+    taskflow.for_each(file_names.begin(), file_names.end(), [&] (std::string file_name) {
+        std::string file_data = get_file_data(path, file_name);
 
-        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_block(block_data);
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_file(file_data);
 
-        csv_writer.write_block(block_number, block); // write block to csv file
+        csv_writer.write_block(file_name, block); // write block to csv file
     });
 
     executor.run(taskflow).wait();
@@ -209,20 +210,20 @@ int main(int argc, char* argv[]) {
     std::string path = argv[1];
     std::ios_base::sync_with_stdio(false);
 
-    std::cout << "getting all block numbers!" << std::endl;
-    std::vector<std::string> block_numbers = get_all_block_numbers(path);
-    std::cout << "finished getting all block numbers!\n" << std::endl;
+    std::cout << "getting all file names!" << std::endl;
+    std::vector<std::string> file_names = get_all_file_names(path);
+    std::cout << "finished getting all file names!\n" << std::endl;
 
     std::cout << "now parsing" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
-    parse_and_export(path, block_numbers);
+    parse_and_export(path, file_names);
     
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
     
     std::cout << "finished parsing!\n" << std::endl;
-    std::cout << "It took " << duration << "ms to parse " << block_numbers.size() << " blocks!" << std::endl;
+    std::cout << "It took " << duration << "ms to parse " << file_names.size() << " files!" << std::endl;
 
     return 0;
 }
