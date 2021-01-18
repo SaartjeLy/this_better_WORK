@@ -73,7 +73,7 @@ std::vector<std::string> get_all_file_names(std::string path) {
         std::string file_path = entry.path();
 
         // verifying the file is a .dat BLOCK file 
-        std::size_t pos = file_path.find("blk");
+        std::size_t pos = file_path.find("blk00000");
 
         if (pos != std::string::npos) {
             file_names.push_back(file_path.substr(path.length(), file_path.length()));
@@ -92,70 +92,19 @@ std::vector<std::string> get_all_file_names(std::string path) {
  * @param block_data the block data to read from
  * @return std::string 
  */
-std::string read_bytes(int from, int bytes, std::string block_data) {
-    std::string byte_string = block_data.substr(from, bytes*2);
+std::string read_bytes(uint32_t* ptr, int bytes, std::string block_data) {
+    std::string byte_string = block_data.substr(*ptr, bytes*2);
+    *ptr += bytes*2; // increments ptr as necessary
 
     // convert to big-endian format in O(n) time
     std::string big_endian_byte_string = "";
-    int ptr = bytes*2 - 1;
-    while (ptr >= 0) {
-        big_endian_byte_string += byte_string.substr(ptr-1, 2);
-        ptr -= 2;
+    int local_ptr = bytes*2 - 1;
+    while (local_ptr >= 0) {
+        big_endian_byte_string += byte_string.substr(local_ptr-1, 2);
+        local_ptr -= 2;
     }
     
     return big_endian_byte_string;
-}
-
-/**
- * @brief parses the preamble section of the BSV block and returns a dictionary representation
- * 
- * @param block_data the BSV block data
- * @return std::unordered_map<std::string, std::string> 
- */
-std::unordered_map<std::string, std::string> parse_preamble(std::string block_data) {
-    std::unordered_map<std::string, std::string> preamble;
-    preamble["magic_number"] = read_bytes(0,4,block_data);
-    preamble["block_size"] = read_bytes(8,4,block_data);
-
-    return preamble;
-}
-
-/**
- * @brief parses the header section of the BSV block and returns a dictionary representation
- * 
- * @param block_data the BSV block data
- * @return std::unordered_map<std::string, std::string> 
- */
-std::unordered_map<std::string, std::string> parse_header(std::string block_data) {
-    std::unordered_map<std::string, std::string> header;
-    header["version"] = read_bytes(16,4,block_data);
-    header["previous_block_hash"] = read_bytes(24,32, block_data);
-    header["merkle_root"] = read_bytes(88, 32, block_data);
-    header["time"] = read_bytes(152, 4, block_data);
-    header["bits"] = read_bytes(160, 4, block_data);
-    header["nonce"] = read_bytes(168,4, block_data);
- 
-    return header;
-}
-
-/**
- * @brief parses the entire BSV block into its various sections and returns a dictionary representation
- * 
- * @param block_data the BSV block data
- * @return std::unordered_map<std::string, std::unordered_map<std::string, std::string>> 
- */
-std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parse_file(std::string file_data) {
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block;
-
-    std::unordered_map<std::string, std::string> preamble = parse_preamble(file_data);
-    std::unordered_map<std::string, std::string> header = parse_header(file_data);
-
-    block["preamble"] = preamble;
-    block["header"] = header;
-
-    //TODO: implement the rest of the block parsing
-
-    return block;
 }
 
 /**
@@ -176,6 +125,77 @@ void pretty_print(std::unordered_map<std::string, std::unordered_map<std::string
 }
 
 /**
+ * @brief parses the preamble section of the BSV block and returns a dictionary representation
+ * 
+ * @param block_data the BSV block data
+ * @return std::unordered_map<std::string, std::string> 
+ */
+std::unordered_map<std::string, std::string> parse_preamble(uint32_t* ptr, std::string block_data) {
+    std::unordered_map<std::string, std::string> preamble;
+    preamble["magic_number"] = read_bytes(ptr,4,block_data);
+    preamble["block_size"] = read_bytes(ptr,4,block_data);
+
+    return preamble;
+}
+
+/**
+ * @brief parses the header section of the BSV block and returns a dictionary representation
+ * 
+ * @param block_data the BSV block data
+ * @return std::unordered_map<std::string, std::string> 
+ */
+std::unordered_map<std::string, std::string> parse_header(uint32_t* ptr, std::string block_data) {
+    std::unordered_map<std::string, std::string> header;
+    header["version"] = read_bytes(ptr,4,block_data);
+    header["previous_block_hash"] = read_bytes(ptr,32, block_data);
+    header["merkle_root"] = read_bytes(ptr, 32, block_data);
+    header["time"] = read_bytes(ptr, 4, block_data);
+    header["bits"] = read_bytes(ptr, 4, block_data);
+    header["nonce"] = read_bytes(ptr,4, block_data);
+ 
+    return header;
+}
+
+/**
+ * @brief parses a BSV block into its various sections and returns a dictionary representation
+ * 
+ * @param ptr 
+ * @param file_data 
+ * @return std::unordered_map<std::string, std::unordered_map<std::string, std::string>> 
+ */
+std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parse_block(uint32_t* ptr, std::string file_data) {
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block;
+    
+    std::unordered_map<std::string, std::string> preamble = parse_preamble(ptr, file_data);
+    std::unordered_map<std::string, std::string> header = parse_header(ptr, file_data);
+
+    block["preamble"] = preamble;
+    block["header"] = header;
+
+    //TODO: implement the rest of the block parsing
+
+    return block;
+}
+
+/**
+ * @brief parses a blk file into its multiple BSV blocks, writing returning a vector with all blocks
+ * 
+ * @param block_data the BSV block data
+ * @return std::unordered_map<std::string, std::unordered_map<std::string, std::string>> 
+ */
+void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string file_data) {
+    uint32_t ptr = 0;
+    std::vector<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> blocks_in_file; // vector of all blocks in the file
+
+    while (ptr < file_data.length()) {
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_block(&ptr, file_data);
+        blocks_in_file.push_back(block);
+        (*csv_writer).write_block(file_name, block); // write block to csv file
+    }
+}
+
+
+/**
  * @brief parses the bsv blocks and exports to CSV
  * 
  * @param path absolute path to the directory holding the .dat bsv block files
@@ -190,9 +210,7 @@ void parse_and_export(std::string path, std::vector<std::string> file_names) {
     taskflow.for_each(file_names.begin(), file_names.end(), [&] (std::string file_name) {
         std::string file_data = get_file_data(path, file_name);
 
-        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_file(file_data);
-
-        csv_writer.write_block(file_name, block); // write block to csv file
+        parse_file(&csv_writer, file_name, file_data);
     });
 
     executor.run(taskflow).wait();
