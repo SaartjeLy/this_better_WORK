@@ -1,8 +1,8 @@
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <time.h>
 #include <chrono>
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
@@ -26,6 +26,22 @@ std::string get_hex(char* binary_string, int size) {
     }
 
     return hex_string;
+}
+
+/**
+ * @brief 
+ * 
+ * @param hex_string 
+ * @return int 
+ */
+int hex_to_int(std::string hex_string) {
+    std::stringstream ss;
+    int val;
+
+    ss << std::hex << hex_string;
+    ss >> val;
+    
+    return val;
 }
 
 /**
@@ -92,8 +108,8 @@ std::vector<std::string> get_all_file_names(std::string path) {
  * @param block_data the block data to read from
  * @return std::string 
  */
-std::string read_bytes(uint32_t* ptr, int bytes, std::string block_data) {
-    std::string byte_string = block_data.substr(*ptr, bytes*2);
+std::string read_bytes(uint32_t* ptr, int bytes, std::string file_data) {
+    std::string byte_string = file_data.substr(*ptr, bytes*2);
     *ptr += bytes*2; // increments ptr as necessary
 
     // convert to big-endian format in O(n) time
@@ -108,20 +124,39 @@ std::string read_bytes(uint32_t* ptr, int bytes, std::string block_data) {
 }
 
 /**
- * @brief prints the bsv block to stdio
- *  
- * @param block the unordered map representing the parsed bsv block
+ * @brief reads a VarInt as per BSV block specs:
+ *        252 or less, read 1 byte
+ *        253, read 2 bytes
+ *        254, read 4 bytes
+ *        255, read 8 bytes
+ * 
+ * @param ptr 
+ * @param bytes 
+ * @param block_data 
+ * @return int
  */
-void pretty_print(std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block) {
-    std::cout << "{\n";
-    for (auto const& pair : block) {
-        std::cout << " {" << pair.first << ":\n";
-        for (auto const& sub_pair : pair.second) {
-            std::cout << "\t{" << sub_pair.first << ": " << sub_pair.second << "}\n";
-        }
-        std::cout << " }" << std::endl;
+int read_variable_bytes(uint32_t* ptr, std::string file_data) {
+    std::string hex_string = read_bytes(ptr, 1, file_data);
+    int val = hex_to_int(hex_string);
+    
+    if (val == 253) {
+        hex_string = read_bytes(ptr, 2, file_data);
+        int val = hex_to_int(hex_string);
     }
-    std::cout << "}\n" << std::endl;
+    else if (val == 254) {
+        hex_string = read_bytes(ptr, 4, file_data);
+        int val = hex_to_int(hex_string);
+    }
+    else if (val == 255) {
+        hex_string = read_bytes(ptr, 8, file_data);
+        int val = hex_to_int(hex_string);
+    }
+    else if (val > 255) {
+        perror("VarInt greater than 255!");
+        exit(1);
+    }
+
+    return val;
 }
 
 /**
@@ -132,7 +167,8 @@ void pretty_print(std::unordered_map<std::string, std::unordered_map<std::string
  */
 std::unordered_map<std::string, std::string> parse_preamble(uint32_t* ptr, std::string block_data) {
     std::unordered_map<std::string, std::string> preamble;
-    preamble["magic_number"] = read_bytes(ptr,4,block_data);
+    std::string magic_number = read_bytes(ptr,4,block_data);
+    preamble["magic_number"] = magic_number;
     preamble["block_size"] = read_bytes(ptr,4,block_data);
 
     return preamble;
@@ -157,22 +193,81 @@ std::unordered_map<std::string, std::string> parse_header(uint32_t* ptr, std::st
 }
 
 /**
+ * @brief 
+ * 
+ * @param ptr 
+ * @param file_data 
+ * @return std::vector<std::unordered_map<std::string, std::any>> 
+ */
+std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32_t* ptr, std::string file_data) {
+    std::vector<std::unordered_map<std::string, std::any>> transactions;
+
+    int number_of_transactions = read_variable_bytes(ptr, file_data);
+
+    for(int i=0; i< number_of_transactions; i++) {
+        std::unordered_map<std::string, std::any> transaction;
+
+        transaction["version"] = read_bytes(ptr, 4, file_data);
+
+        int number_of_inputs = read_variable_bytes(ptr, file_data);
+        std::vector<std::unordered_map<std::string, std::any>> transaction_inputs;
+        for(int x=0; x < number_of_inputs; x++) {
+            std::unordered_map<std::string, std::any> transaction_input;
+            
+            transaction_input["pre_transaction_hash"] = read_bytes(ptr, 32, file_data);
+            transaction_input["pre_transaction_out_index"] = read_bytes(ptr, 4, file_data);
+
+            int script_length = read_variable_bytes(ptr, file_data);
+            transaction_input["script_length"] = script_length;
+
+            transaction_input["script"] = read_bytes(ptr, script_length, file_data);
+            transaction_input["sequence"] = read_bytes(ptr, 4, file_data);
+
+            transaction_inputs.push_back(transaction_input);
+        }
+
+        int number_of_outputs = read_variable_bytes(ptr, file_data);
+        std::vector<std::unordered_map<std::string, std::any>> transaction_outputs;
+        for(int y=0; y < number_of_outputs; y++) {
+            std::unordered_map<std::string, std::any> transaction_output;
+
+            transaction_output["value"] = read_bytes(ptr, 8, file_data);
+
+            int script_length = read_variable_bytes(ptr, file_data);
+            transaction_output["script_length"] = script_length;
+
+            transaction_output["script"] = read_bytes(ptr, script_length, file_data);
+
+            transaction_outputs.push_back(transaction_output);
+        }
+
+        transaction["transaction_inputs"] = transaction_inputs;
+        transaction["transaction_outputs"] = transaction_outputs;
+        transaction["lock_time"] = read_bytes(ptr, 4, file_data);
+
+        transactions.push_back(transaction);
+    }
+
+    return transactions;
+}
+
+/**
  * @brief parses a BSV block into its various sections and returns a dictionary representation
  * 
  * @param ptr 
  * @param file_data 
- * @return std::unordered_map<std::string, std::unordered_map<std::string, std::string>> 
+ * @return std::unordered_map<std::string, std::any>
  */
-std::unordered_map<std::string, std::unordered_map<std::string, std::string>> parse_block(uint32_t* ptr, std::string file_data) {
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block;
+std::unordered_map<std::string, std::any> parse_block(uint32_t* ptr, std::string file_data) {
+    std::unordered_map<std::string, std::any> block;
     
     std::unordered_map<std::string, std::string> preamble = parse_preamble(ptr, file_data);
     std::unordered_map<std::string, std::string> header = parse_header(ptr, file_data);
+    std::vector<std::unordered_map<std::string, std::any>> transactions = parse_transactions(ptr, file_data);
 
     block["preamble"] = preamble;
     block["header"] = header;
-
-    //TODO: implement the rest of the block parsing
+    block["transactions"] = transactions;
 
     return block;
 }
@@ -181,19 +276,20 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> pa
  * @brief parses a blk file into its multiple BSV blocks, writing returning a vector with all blocks
  * 
  * @param block_data the BSV block data
- * @return std::unordered_map<std::string, std::unordered_map<std::string, std::string>> 
+ * @return void
  */
 void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string file_data) {
     uint32_t ptr = 0;
-    std::vector<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> blocks_in_file; // vector of all blocks in the file
+    std::vector<std::unordered_map<std::string, std::any>> blocks_in_file; // vector of all blocks in the file
 
     while (ptr < file_data.length()) {
-        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> block = parse_block(&ptr, file_data);
+        std::unordered_map<std::string, std::any> block = parse_block(&ptr, file_data);
+
         blocks_in_file.push_back(block);
         (*csv_writer).write_block(file_name, block); // write block to csv file
+        std::cout << ptr << std::endl;
     }
 }
-
 
 /**
  * @brief parses the bsv blocks and exports to CSV
