@@ -15,14 +15,14 @@
  * @param size the length of the binary string
  * @return std::string 
  */
-std::string get_hex(char* binary_string, int size) {
+std::string* get_hex(char* binary_string, int size) {
     char const hex[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-    std::string hex_string;
+    std::string* hex_string = new std::string;
 
     for(int i=0; i<size; i++) {
         const char ch = binary_string[i];
-        hex_string.append(&hex[(ch & 0xF0) >> 4], 1); // append MSH/MSB of current char to hex string
-        hex_string.append(&hex[ch & 0xF], 1); // append LSH/LSB of current char to hex string
+        (*hex_string).append(&hex[(ch & 0xF0) >> 4], 1); // append MSH/MSB of current char to hex string
+        (*hex_string).append(&hex[ch & 0xF], 1); // append LSH/LSB of current char to hex string
     }
 
     return hex_string;
@@ -34,13 +34,8 @@ std::string get_hex(char* binary_string, int size) {
  * @param hex_string 
  * @return int 
  */
-int hex_to_int(std::string hex_string) {
-    std::stringstream ss;
-    int val;
-
-    ss << std::hex << hex_string;
-    ss >> val;
-    
+unsigned long hex_to_int(std::string* hex_string) {
+    unsigned long val = std::stoul(*hex_string, 0, 16);
     return val;
 }
 
@@ -51,7 +46,7 @@ int hex_to_int(std::string hex_string) {
  * @param block the name of the blk file
  * @return std::string 
  */
-std::string get_file_data(std::string path, std::string file_name) {
+std::string* get_file_data(std::string path, std::string file_name) {
     // open file
     std::ifstream file;
     file.open(path + file_name, std::ios::ate|std::ios::binary|std::ios::in);
@@ -69,7 +64,7 @@ std::string get_file_data(std::string path, std::string file_name) {
     file.read(buffer, size);
     file.close();
 
-    std::string hex_string_of_data = get_hex(buffer, size);
+    std::string* hex_string_of_data = get_hex(buffer, size);
     free(buffer);
 
     return hex_string_of_data;
@@ -108,15 +103,15 @@ std::vector<std::string> get_all_file_names(std::string path) {
  * @param block_data the block data to read from
  * @return std::string 
  */
-std::string read_bytes(uint32_t* ptr, int bytes, std::string file_data) {
-    std::string byte_string = file_data.substr(*ptr, bytes*2);
+std::string* read_bytes(uint32_t* ptr, int bytes, std::string* file_data) {
+    std::string byte_string = (*file_data).substr(*ptr, bytes*2);
     *ptr += bytes*2; // increments ptr as necessary
 
     // convert to big-endian format in O(n) time
-    std::string big_endian_byte_string = "";
+    std::string* big_endian_byte_string = new std::string;
     int local_ptr = bytes*2 - 1;
     while (local_ptr >= 0) {
-        big_endian_byte_string += byte_string.substr(local_ptr-1, 2);
+        *big_endian_byte_string += byte_string.substr(local_ptr-1, 2);
         local_ptr -= 2;
     }
     
@@ -135,21 +130,21 @@ std::string read_bytes(uint32_t* ptr, int bytes, std::string file_data) {
  * @param block_data 
  * @return int
  */
-int read_variable_bytes(uint32_t* ptr, std::string file_data) {
-    std::string hex_string = read_bytes(ptr, 1, file_data);
-    int val = hex_to_int(hex_string);
-    
+unsigned long read_variable_bytes(uint32_t* ptr, std::string* file_data) {
+    std::string* hex_string = read_bytes(ptr, 1, file_data);
+    unsigned long val = hex_to_int(hex_string);
+
     if (val == 253) {
         hex_string = read_bytes(ptr, 2, file_data);
-        int val = hex_to_int(hex_string);
+        unsigned long val = hex_to_int(hex_string);
     }
     else if (val == 254) {
         hex_string = read_bytes(ptr, 4, file_data);
-        int val = hex_to_int(hex_string);
+        unsigned long val = hex_to_int(hex_string);
     }
     else if (val == 255) {
         hex_string = read_bytes(ptr, 8, file_data);
-        int val = hex_to_int(hex_string);
+        unsigned long val = hex_to_int(hex_string);
     }
     else if (val > 255) {
         perror("VarInt greater than 255!");
@@ -165,11 +160,10 @@ int read_variable_bytes(uint32_t* ptr, std::string file_data) {
  * @param block_data the BSV block data
  * @return std::unordered_map<std::string, std::string> 
  */
-std::unordered_map<std::string, std::string> parse_preamble(uint32_t* ptr, std::string block_data) {
+std::unordered_map<std::string, std::string> parse_preamble(uint32_t* ptr, std::string* block_data) {
     std::unordered_map<std::string, std::string> preamble;
-    std::string magic_number = read_bytes(ptr,4,block_data);
-    preamble["magic_number"] = magic_number;
-    preamble["block_size"] = read_bytes(ptr,4,block_data);
+    preamble["magic_number"] = *read_bytes(ptr,4,block_data);
+    preamble["block_size"] = *read_bytes(ptr,4,block_data);
 
     return preamble;
 }
@@ -180,14 +174,14 @@ std::unordered_map<std::string, std::string> parse_preamble(uint32_t* ptr, std::
  * @param block_data the BSV block data
  * @return std::unordered_map<std::string, std::string> 
  */
-std::unordered_map<std::string, std::string> parse_header(uint32_t* ptr, std::string block_data) {
+std::unordered_map<std::string, std::string> parse_header(uint32_t* ptr, std::string* block_data) {
     std::unordered_map<std::string, std::string> header;
-    header["version"] = read_bytes(ptr,4,block_data);
-    header["previous_block_hash"] = read_bytes(ptr,32, block_data);
-    header["merkle_root"] = read_bytes(ptr, 32, block_data);
-    header["time"] = read_bytes(ptr, 4, block_data);
-    header["bits"] = read_bytes(ptr, 4, block_data);
-    header["nonce"] = read_bytes(ptr,4, block_data);
+    header["version"] = *read_bytes(ptr,4,block_data);
+    header["previous_block_hash"] = *read_bytes(ptr,32, block_data);
+    header["merkle_root"] = *read_bytes(ptr, 32, block_data);
+    header["time"] = *read_bytes(ptr, 4, block_data);
+    header["bits"] = *read_bytes(ptr, 4, block_data);
+    header["nonce"] = *read_bytes(ptr,4, block_data);
  
     return header;
 }
@@ -199,17 +193,16 @@ std::unordered_map<std::string, std::string> parse_header(uint32_t* ptr, std::st
  * @param file_data 
  * @return std::vector<std::unordered_map<std::string, std::any>> 
  */
-std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32_t* ptr, std::string file_data) {
+std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32_t* ptr, std::string* file_data) {
     std::vector<std::unordered_map<std::string, std::any>> transactions;
 
-    int number_of_transactions = read_variable_bytes(ptr, file_data);
-
+    unsigned long number_of_transactions = read_variable_bytes(ptr, file_data);
     for(int i=0; i< number_of_transactions; i++) {
         std::unordered_map<std::string, std::any> transaction;
 
         transaction["version"] = read_bytes(ptr, 4, file_data);
 
-        int number_of_inputs = read_variable_bytes(ptr, file_data);
+        unsigned long number_of_inputs = read_variable_bytes(ptr, file_data);
         std::vector<std::unordered_map<std::string, std::any>> transaction_inputs;
         for(int x=0; x < number_of_inputs; x++) {
             std::unordered_map<std::string, std::any> transaction_input;
@@ -217,7 +210,8 @@ std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32
             transaction_input["pre_transaction_hash"] = read_bytes(ptr, 32, file_data);
             transaction_input["pre_transaction_out_index"] = read_bytes(ptr, 4, file_data);
 
-            int script_length = read_variable_bytes(ptr, file_data);
+            unsigned long script_length = read_variable_bytes(ptr, file_data);
+
             transaction_input["script_length"] = script_length;
 
             transaction_input["script"] = read_bytes(ptr, script_length, file_data);
@@ -226,14 +220,14 @@ std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32
             transaction_inputs.push_back(transaction_input);
         }
 
-        int number_of_outputs = read_variable_bytes(ptr, file_data);
+        unsigned long number_of_outputs = read_variable_bytes(ptr, file_data);
         std::vector<std::unordered_map<std::string, std::any>> transaction_outputs;
         for(int y=0; y < number_of_outputs; y++) {
             std::unordered_map<std::string, std::any> transaction_output;
 
             transaction_output["value"] = read_bytes(ptr, 8, file_data);
 
-            int script_length = read_variable_bytes(ptr, file_data);
+            unsigned long script_length = read_variable_bytes(ptr, file_data);
             transaction_output["script_length"] = script_length;
 
             transaction_output["script"] = read_bytes(ptr, script_length, file_data);
@@ -258,7 +252,7 @@ std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32
  * @param file_data 
  * @return std::unordered_map<std::string, std::any>
  */
-std::unordered_map<std::string, std::any> parse_block(uint32_t* ptr, std::string file_data) {
+std::unordered_map<std::string, std::any> parse_block(uint32_t* ptr, std::string* file_data) {
     std::unordered_map<std::string, std::any> block;
     
     std::unordered_map<std::string, std::string> preamble = parse_preamble(ptr, file_data);
@@ -278,11 +272,14 @@ std::unordered_map<std::string, std::any> parse_block(uint32_t* ptr, std::string
  * @param block_data the BSV block data
  * @return void
  */
-void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string file_data) {
+void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string* file_data) {
     uint32_t ptr = 0;
     std::vector<std::unordered_map<std::string, std::any>> blocks_in_file; // vector of all blocks in the file
-
-    while (ptr < file_data.length()) {
+    // 260584256
+    // 268429204
+    // 268429312
+    
+    while (ptr < (*file_data).length()-1) {
         std::unordered_map<std::string, std::any> block = parse_block(&ptr, file_data);
 
         blocks_in_file.push_back(block);
@@ -304,7 +301,7 @@ void parse_and_export(std::string path, std::vector<std::string> file_names) {
     CSV_WRITER csv_writer("bitcoinsv.csv"); // create csv file and open file stream
 
     taskflow.for_each(file_names.begin(), file_names.end(), [&] (std::string file_name) {
-        std::string file_data = get_file_data(path, file_name);
+        std::string* file_data = get_file_data(path, file_name);
 
         parse_file(&csv_writer, file_name, file_data);
     });
