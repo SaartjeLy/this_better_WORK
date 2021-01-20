@@ -135,16 +135,16 @@ unsigned long read_variable_bytes(uint32_t* ptr, std::string* file_data) {
     unsigned long val = hex_to_int(hex_string);
 
     if (val == 253) {
-        hex_string = read_bytes(ptr, 2, file_data);
-        unsigned long val = hex_to_int(hex_string);
+        std::string* two_byte_hex_string = read_bytes(ptr, 2, file_data);
+        return hex_to_int(two_byte_hex_string);
     }
     else if (val == 254) {
-        hex_string = read_bytes(ptr, 4, file_data);
-        unsigned long val = hex_to_int(hex_string);
+        std::string* four_byte_hex_string = read_bytes(ptr, 4, file_data);
+        return hex_to_int(four_byte_hex_string);
     }
     else if (val == 255) {
-        hex_string = read_bytes(ptr, 8, file_data);
-        unsigned long val = hex_to_int(hex_string);
+        std::string* eight_byte_hex_string = read_bytes(ptr, 8, file_data);
+        return hex_to_int(eight_byte_hex_string);
     }
     else if (val > 255) {
         perror("VarInt greater than 255!");
@@ -200,22 +200,24 @@ std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32
     for(int i=0; i< number_of_transactions; i++) {
         std::unordered_map<std::string, std::any> transaction;
 
-        transaction["version"] = read_bytes(ptr, 4, file_data);
+        transaction["version"] = *read_bytes(ptr, 4, file_data);
 
         unsigned long number_of_inputs = read_variable_bytes(ptr, file_data);
         std::vector<std::unordered_map<std::string, std::any>> transaction_inputs;
         for(int x=0; x < number_of_inputs; x++) {
             std::unordered_map<std::string, std::any> transaction_input;
             
-            transaction_input["pre_transaction_hash"] = read_bytes(ptr, 32, file_data);
-            transaction_input["pre_transaction_out_index"] = read_bytes(ptr, 4, file_data);
+            transaction_input["pre_transaction_hash"] = *read_bytes(ptr, 32, file_data);
+            transaction_input["pre_transaction_out_index"] = *read_bytes(ptr, 4, file_data);
 
             unsigned long script_length = read_variable_bytes(ptr, file_data);
 
             transaction_input["script_length"] = script_length;
 
-            transaction_input["script"] = read_bytes(ptr, script_length, file_data);
-            transaction_input["sequence"] = read_bytes(ptr, 4, file_data);
+            std::string script = *read_bytes(ptr, script_length, file_data);
+
+            transaction_input["script"] = script;
+            transaction_input["sequence"] = *read_bytes(ptr, 4, file_data);
 
             transaction_inputs.push_back(transaction_input);
         }
@@ -225,19 +227,19 @@ std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32
         for(int y=0; y < number_of_outputs; y++) {
             std::unordered_map<std::string, std::any> transaction_output;
 
-            transaction_output["value"] = read_bytes(ptr, 8, file_data);
+            transaction_output["value"] = *read_bytes(ptr, 8, file_data);
 
             unsigned long script_length = read_variable_bytes(ptr, file_data);
             transaction_output["script_length"] = script_length;
 
-            transaction_output["script"] = read_bytes(ptr, script_length, file_data);
+            transaction_output["script"] = *read_bytes(ptr, script_length, file_data);
 
             transaction_outputs.push_back(transaction_output);
         }
 
         transaction["transaction_inputs"] = transaction_inputs;
         transaction["transaction_outputs"] = transaction_outputs;
-        transaction["lock_time"] = read_bytes(ptr, 4, file_data);
+        transaction["lock_time"] = *read_bytes(ptr, 4, file_data);
 
         transactions.push_back(transaction);
     }
@@ -275,16 +277,15 @@ std::unordered_map<std::string, std::any> parse_block(uint32_t* ptr, std::string
 void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string* file_data) {
     uint32_t ptr = 0;
     std::vector<std::unordered_map<std::string, std::any>> blocks_in_file; // vector of all blocks in the file
-    // 260584256
-    // 268429204
-    // 268429312
-    
-    while (ptr < (*file_data).length()-1) {
+
+    uint32_t block_count = 0;
+
+    while (ptr < (*file_data).length()) {
+        block_count++;
         std::unordered_map<std::string, std::any> block = parse_block(&ptr, file_data);
 
         blocks_in_file.push_back(block);
         (*csv_writer).write_block(file_name, block); // write block to csv file
-        std::cout << ptr << std::endl;
     }
 }
 
