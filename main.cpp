@@ -65,7 +65,7 @@ std::string* get_file_data(std::string path, std::string file_name) {
     file.close();
 
     std::string* hex_string_of_data = get_hex(buffer, size);
-    free(buffer);
+    delete buffer;
 
     return hex_string_of_data;
 }
@@ -84,7 +84,7 @@ std::vector<std::string> get_all_file_names(std::string path) {
         std::string file_path = entry.path();
 
         // verifying the file is a .dat BLOCK file 
-        std::size_t pos = file_path.find("blk00000");
+        std::size_t pos = file_path.find("blk000");
 
         if (pos != std::string::npos) {
             file_names.push_back(file_path.substr(path.length(), file_path.length()));
@@ -136,20 +136,28 @@ unsigned long read_variable_bytes(uint32_t* ptr, std::string* file_data) {
 
     if (val == 253) {
         std::string* two_byte_hex_string = read_bytes(ptr, 2, file_data);
-        return hex_to_int(two_byte_hex_string);
+        unsigned long two_byte_val = hex_to_int(two_byte_hex_string);
+        delete two_byte_hex_string;
+        return two_byte_val;
     }
     else if (val == 254) {
         std::string* four_byte_hex_string = read_bytes(ptr, 4, file_data);
-        return hex_to_int(four_byte_hex_string);
+        unsigned long four_byte_val = hex_to_int(four_byte_hex_string);
+        delete four_byte_hex_string;
+        return four_byte_val;
     }
     else if (val == 255) {
         std::string* eight_byte_hex_string = read_bytes(ptr, 8, file_data);
-        return hex_to_int(eight_byte_hex_string);
+        unsigned long eight_byte_val = hex_to_int(eight_byte_hex_string);
+        delete eight_byte_hex_string;
+        return eight_byte_val;
     }
     else if (val > 255) {
         perror("VarInt greater than 255!");
         exit(1);
     }
+
+    delete hex_string;
 
     return val;
 }
@@ -254,16 +262,16 @@ std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32
  * @param file_data 
  * @return std::unordered_map<std::string, std::any>
  */
-std::unordered_map<std::string, std::any> parse_block(uint32_t* ptr, std::string* file_data) {
-    std::unordered_map<std::string, std::any> block;
+std::unordered_map<std::string, std::any>* parse_block(uint32_t* ptr, std::string* file_data) {
+    std::unordered_map<std::string, std::any>* block = new std::unordered_map<std::string, std::any>;
     
     std::unordered_map<std::string, std::string> preamble = parse_preamble(ptr, file_data);
     std::unordered_map<std::string, std::string> header = parse_header(ptr, file_data);
     std::vector<std::unordered_map<std::string, std::any>> transactions = parse_transactions(ptr, file_data);
 
-    block["preamble"] = preamble;
-    block["header"] = header;
-    block["transactions"] = transactions;
+    (*block)["preamble"] = preamble;
+    (*block)["header"] = header;
+    (*block)["transactions"] = transactions;
 
     return block;
 }
@@ -276,16 +284,15 @@ std::unordered_map<std::string, std::any> parse_block(uint32_t* ptr, std::string
  */
 void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string* file_data) {
     uint32_t ptr = 0;
-    std::vector<std::unordered_map<std::string, std::any>> blocks_in_file; // vector of all blocks in the file
-
     uint32_t block_count = 0;
 
     while (ptr < (*file_data).length()) {
         block_count++;
-        std::unordered_map<std::string, std::any> block = parse_block(&ptr, file_data);
+        std::unordered_map<std::string, std::any>* block = parse_block(&ptr, file_data);
 
-        blocks_in_file.push_back(block);
         (*csv_writer).write_block(file_name, block); // write block to csv file
+
+        delete block; // dealloc memory for block
     }
 }
 
@@ -305,6 +312,8 @@ void parse_and_export(std::string path, std::vector<std::string> file_names) {
         std::string* file_data = get_file_data(path, file_name);
 
         parse_file(&csv_writer, file_name, file_data);
+
+        delete file_data;
     });
 
     executor.run(taskflow).wait();
