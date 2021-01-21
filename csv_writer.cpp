@@ -2,7 +2,7 @@
 #include <iostream>
 
 CSV_WRITER::CSV_WRITER(std::string filename) : filename(filename) {
-    csv_file.open(filename);
+    csv_file.open(filename, std::ios_base::app);
     write_line("file_name,magic_number,block_size,version,previous_block_hash,merkle_root,time,bits,nonce");
 }
 
@@ -21,7 +21,7 @@ void CSV_WRITER::write_line(std::string line) {
  * @param block_number the block number
  * @param block unordered map of block data
  */
-void CSV_WRITER::write_block(std::string block_number, std::unordered_map<std::string, std::any> block) {
+void CSV_WRITER::write_block(std::string block_number, std::unordered_map<std::string, std::any>* block) {
     std::string line;
     std::string magic_number;
     std::string block_size;
@@ -32,8 +32,8 @@ void CSV_WRITER::write_block(std::string block_number, std::unordered_map<std::s
     std::string bits;
     std::string nonce; 
 
-    std::unordered_map<std::string, std::any>::iterator preamble_it = block.find("preamble");
-    if (preamble_it != block.end()) {
+    std::unordered_map<std::string, std::any>::iterator preamble_it = (*block).find("preamble");
+    if (preamble_it != (*block).end()) {
         std::unordered_map<std::string, std::string> preamble = std::any_cast<std::unordered_map<std::string, std::string>>(preamble_it->second);
 
         // probably need more error checks here
@@ -45,8 +45,8 @@ void CSV_WRITER::write_block(std::string block_number, std::unordered_map<std::s
         exit(1);
     }
 
-    std::unordered_map<std::string, std::any>::iterator header_it = block.find("header");
-    if (header_it != block.end()) {
+    std::unordered_map<std::string, std::any>::iterator header_it = (*block).find("header");
+    if (header_it != (*block).end()) {
         std::unordered_map<std::string, std::string> header = std::any_cast<std::unordered_map<std::string, std::string>>(header_it->second);
         
         // probably need more error checks here
