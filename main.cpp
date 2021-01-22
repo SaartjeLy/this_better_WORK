@@ -65,7 +65,7 @@ std::string* get_file_data(std::string path, std::string file_name) {
     file.close();
 
     std::string* hex_string_of_data = get_hex(buffer, size);
-    delete buffer;
+    delete [] buffer;
 
     return hex_string_of_data;
 }
