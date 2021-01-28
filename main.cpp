@@ -326,6 +326,12 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
     csv_writer.close();
 }
 
+/**
+ * @brief parse all files in the file data vector and write the previous block hash to a json file
+ * 
+ * @param file_names 
+ * @param vector_of_file_data 
+ */
 void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data) {
     tf::Taskflow taskflow;
     tf::Executor executor;
