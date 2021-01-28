@@ -1,4 +1,5 @@
 /.vscode
 build/*.o
 build/*.csv
+build/*.json
 /taskflow
