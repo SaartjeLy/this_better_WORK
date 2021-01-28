@@ -7,8 +7,8 @@
 #include <mutex>
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
-#include "csv_writer.h"
-#include "json_writer.h"
+#include "include/csv_writer.h"
+#include "include/json_writer.h"
 
 /**
  * @brief uses bit-shifting to convert a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
