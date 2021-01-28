@@ -7,8 +7,8 @@
 #include <mutex>
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
-#include "include/csv_writer.h"
-#include "include/json_writer.h"
+#include "../include/csv_writer.h"
+#include "../include/json_writer.h"
 
 /**
  * @brief uses bit-shifting to convert a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
@@ -367,7 +367,7 @@ void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<s
 void read_files_and_parse(std::string path, std::vector<std::string> file_names) {
     std::vector<std::string*> vector_of_file_data;
 
-    get_file_data(0, 1, path, file_names, &vector_of_file_data);
+    get_file_data(0, 1, path, file_names, &vector_of_file_data); // get file data for 1 file
 
     std::cout << "FINISHED READING FILES INTO MEMORY" << std::endl;
 
