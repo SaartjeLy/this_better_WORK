@@ -8,6 +8,7 @@
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
 #include "csv_writer.h"
+#include "json_writer.h"
 
 /**
  * @brief uses bit-shifting to convert a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
@@ -321,6 +322,34 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
 
     executor.run(taskflow).wait();
     taskflow.clear();
+
+    csv_writer.close();
+}
+
+void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data) {
+    tf::Taskflow taskflow;
+    tf::Executor executor;
+
+    JSON_WRITER json_writer("bitcoinsv.json"); // create csv file and open file stream)
+
+    taskflow.for_each(vector_of_file_data.begin(), vector_of_file_data.end(), [&] (std::string* file_data) {
+        uint32_t ptr = 0;
+        uint32_t block_count = 0;
+
+        while (ptr < (*file_data).length()) {
+            block_count++;
+            std::unordered_map<std::string, std::any>* block = parse_block(&ptr, file_data);
+
+            json_writer.write_hash(block); // write block to csv file
+
+            delete block; // dealloc memory for block
+        }
+    });
+
+    executor.run(taskflow).wait();
+    taskflow.clear();
+
+    json_writer.close();
 }
 
 /**
@@ -336,7 +365,8 @@ void read_files_and_parse(std::string path, std::vector<std::string> file_names)
 
     std::cout << "FINISHED READING FILES INTO MEMORY" << std::endl;
 
-    parse_and_export_to_csv(file_names, vector_of_file_data);
+    // parse_and_export_to_csv(file_names, vector_of_file_data);
+    parse_and_export_to_json(file_names, vector_of_file_data);
 }
 
 int main(int argc, char* argv[]) {
