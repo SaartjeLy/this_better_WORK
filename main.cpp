@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <chrono>
+#include <mutex>
 #include <experimental/filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
 #include "csv_writer.h"
@@ -40,34 +41,50 @@ unsigned long hex_to_int(std::string* hex_string) {
 }
 
 /**
- * @brief reads all the file data from the binary .dat blk file and converts to a hex string
+ * @brief reads a number (to - from) of files in a parallelised way, storing the file data in a vector collection of strings
  * 
- * @param path the absolute path to the relevant directory
- * @param block the name of the blk file
- * @return std::string 
+ * @param from 
+ * @param to 
+ * @param path 
+ * @param file_names 
+ * @param collection 
  */
-std::string* get_file_data(std::string path, std::string file_name) {
-    // open file
-    std::ifstream file;
-    file.open(path + file_name, std::ios::ate|std::ios::binary|std::ios::in);
+void get_file_data(int from, int to, std::string path, std::vector<std::string> file_names, std::vector<std::string*>* collection) {
+    std::mutex mutex;
+    
+    tf::Taskflow taskflow;
+    tf::Executor executorA;
 
-    // exit if the file doesn't exist
-    if(!file.is_open()) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
-    }
+    taskflow.for_each_index(from, to, 1, [&] (int i) {
+        // open file
+        std::ifstream file;
+        file.open(path + file_names[i], std::ios::ate|std::ios::binary|std::ios::in);
 
-    // read input (each char is in 2's comp format)
-    std::ifstream::pos_type size = file.tellg();
-    char* buffer = new char[size];
-    file.seekg(0, std::ios::beg);
-    file.read(buffer, size);
-    file.close();
+        // exit if the file doesn't exist
+        if(!file.is_open()) {
+            perror("Error opening file");
+            exit(EXIT_FAILURE);
+        }
 
-    std::string* hex_string_of_data = get_hex(buffer, size);
-    delete [] buffer;
+        // read input (each char is in 2's comp format)
+        std::ifstream::pos_type size = file.tellg();
+        char* buffer = new char[size];
+        file.seekg(0, std::ios::beg);
+        file.read(buffer, size);
+        file.close();
 
-    return hex_string_of_data;
+        std::string* hex_string_of_data = get_hex(buffer, size);
+        delete [] buffer;
+        
+        mutex.lock();
+        (*collection).push_back(hex_string_of_data);
+        mutex.unlock();
+    });
+
+    executorA.run(taskflow).wait();
+    taskflow.clear();
+
+    std::cout << to << " DONE!" << std::endl;
 }
 
 /**
@@ -84,7 +101,7 @@ std::vector<std::string> get_all_file_names(std::string path) {
         std::string file_path = entry.path();
 
         // verifying the file is a .dat BLOCK file 
-        std::size_t pos = file_path.find("blk000");
+        std::size_t pos = file_path.find("blk");
 
         if (pos != std::string::npos) {
             file_names.push_back(file_path.substr(path.length(), file_path.length()));
@@ -277,23 +294,33 @@ std::unordered_map<std::string, std::any>* parse_block(uint32_t* ptr, std::strin
 }
 
 /**
- * @brief parses a blk file into its multiple BSV blocks, writing returning a vector with all blocks
+ * @brief parse all files in the file data vector and write block headers to csv
  * 
- * @param block_data the BSV block data
- * @return void
+ * @param file_names 
+ * @param vector_of_file_data 
  */
-void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string* file_data) {
-    uint32_t ptr = 0;
-    uint32_t block_count = 0;
+void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data) {
+    tf::Taskflow taskflow;
+    tf::Executor executor;
 
-    while (ptr < (*file_data).length()) {
-        block_count++;
-        std::unordered_map<std::string, std::any>* block = parse_block(&ptr, file_data);
+    CSV_WRITER csv_writer("bitcoinsv.csv"); // create csv file and open file stream)
 
-        (*csv_writer).write_block(file_name, block); // write block to csv file
+    tf::Task D = taskflow.for_each(vector_of_file_data.begin(), vector_of_file_data.end(), [&] (std::string* file_data) {
+        uint32_t ptr = 0;
+        uint32_t block_count = 0;
 
-        delete block; // dealloc memory for block
-    }
+        while (ptr < (*file_data).length()) {
+            block_count++;
+            std::unordered_map<std::string, std::any>* block = parse_block(&ptr, file_data);
+
+            csv_writer.write_block("blkxxxxx.dat", block); // write block to csv file
+
+            delete block; // dealloc memory for block
+        }
+    });
+
+    executor.run(taskflow).wait();
+    taskflow.clear();
 }
 
 /**
@@ -302,24 +329,14 @@ void parse_file(CSV_WRITER* csv_writer, std::string file_name, std::string* file
  * @param path absolute path to the directory holding the .dat bsv block files
  * @param block_numbers string vector of the .dat filenames
  */
-void parse_and_export(std::string path, std::vector<std::string> file_names) {
-    tf::Taskflow taskflow;
-    tf::Executor executor;
-    
-    CSV_WRITER csv_writer("bitcoinsv.csv"); // create csv file and open file stream
+void read_files_and_parse(std::string path, std::vector<std::string> file_names) {
+    std::vector<std::string*> vector_of_file_data;
 
-    taskflow.for_each(file_names.begin(), file_names.end(), [&] (std::string file_name) {
-        std::string* file_data = get_file_data(path, file_name);
+    get_file_data(0, 1, path, file_names, &vector_of_file_data);
 
-        parse_file(&csv_writer, file_name, file_data);
+    std::cout << "FINISHED READING FILES INTO MEMORY" << std::endl;
 
-        delete file_data;
-    });
-
-    executor.run(taskflow).wait();
-    taskflow.clear();
-
-    csv_writer.close(); // close the csv file here
+    parse_and_export_to_csv(file_names, vector_of_file_data);
 }
 
 int main(int argc, char* argv[]) {
@@ -338,7 +355,7 @@ int main(int argc, char* argv[]) {
     std::cout << "now parsing" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
-    parse_and_export(path, file_names);
+    read_files_and_parse(path, file_names);
     
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
