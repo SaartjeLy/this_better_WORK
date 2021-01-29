@@ -9,6 +9,7 @@
 #include "taskflow/taskflow/taskflow.hpp"
 #include "../include/csv_writer.h"
 #include "../include/json_writer.h"
+#include "../include/bsv_block.h"
 
 /**
  * @brief uses bit-shifting to convert a binary string to a hex string, adapted from https://stackoverflow.com/a/10723475
@@ -280,18 +281,54 @@ std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32
  * @param file_data 
  * @return std::unordered_map<std::string, std::any>
  */
-std::unordered_map<std::string, std::any>* parse_block(uint32_t* ptr, std::string* file_data) {
-    std::unordered_map<std::string, std::any>* block = new std::unordered_map<std::string, std::any>;
+BSV_BLOCK parse_block(uint32_t* ptr, std::string* file_data) {
+    BSV_BLOCK bsv_block;
     
-    std::unordered_map<std::string, std::string> preamble = parse_preamble(ptr, file_data);
-    std::unordered_map<std::string, std::string> header = parse_header(ptr, file_data);
-    std::vector<std::unordered_map<std::string, std::any>> transactions = parse_transactions(ptr, file_data);
+    // preamble
+    bsv_block.set_magic_number(read_bytes(ptr,4,file_data));
+    bsv_block.set_block_size(read_bytes(ptr,4,file_data));
 
-    (*block)["preamble"] = preamble;
-    (*block)["header"] = header;
-    (*block)["transactions"] = transactions;
+    // header
+    bsv_block.set_version(read_bytes(ptr,4,file_data));
+    bsv_block.set_previous_block_hash(read_bytes(ptr,32,file_data));
+    bsv_block.set_merkle_root(read_bytes(ptr,32,file_data));
+    bsv_block.set_time(read_bytes(ptr,4,file_data));
+    bsv_block.set_bits(read_bytes(ptr,4,file_data));
+    bsv_block.set_nonce(read_bytes(ptr,4,file_data));
 
-    return block;
+    // transactions
+    unsigned long number_of_transactions = read_variable_bytes(ptr, file_data);
+    bsv_block.set_number_of_transactions(number_of_transactions);
+
+    for (int i=0; i<number_of_transactions; i++) {
+        std::string version = *read_bytes(ptr, 4, file_data);
+
+        unsigned long number_of_inputs = read_variable_bytes(ptr, file_data);
+        for( int x=0; x<number_of_inputs; x++) {
+            std::string pre_transaction_has = *read_bytes(ptr, 32, file_data);
+            std::string pre_transactions_out_index = *read_bytes(ptr, 4, file_data);
+
+            unsigned long script_length = read_variable_bytes(ptr, file_data);
+            std::string script_length_string = std::to_string(script_length);
+
+            std::string script = *read_bytes(ptr, script_length, file_data);
+            std::string sequence = *read_bytes(ptr, 4, file_data);
+        }
+
+        unsigned long number_of_outputs = read_variable_bytes(ptr, file_data);
+        for( int y=0; y<number_of_outputs; y++) {
+            std::string value = *read_bytes(ptr, 8, file_data);
+
+            unsigned long script_length = read_variable_bytes(ptr, file_data);
+            std::string script_length_string = std::to_string(script_length);
+
+            std::string script = *read_bytes(ptr, script_length, file_data);
+        }
+    
+        std::string lock_time = *read_bytes(ptr, 4, file_data);
+    }
+
+    return bsv_block;
 }
 
 /**
@@ -312,11 +349,12 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
 
         while (ptr < (*file_data).length()) {
             block_count++;
-            std::unordered_map<std::string, std::any>* block = parse_block(&ptr, file_data);
+            BSV_BLOCK block = parse_block(&ptr, file_data);
 
-            csv_writer.write_block("blkxxxxx.dat", block); // write block to csv file
+            //TODO: re-implement write_block for CSV_WRITER class
+            // csv_writer.write_block("blkxxxxx.dat", block); // write block to csv file
 
-            delete block; // dealloc memory for block
+            // delete block; // dealloc memory for block
         }
     });
 
@@ -335,8 +373,9 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
 void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data) {
     tf::Taskflow taskflow;
     tf::Executor executor;
+    std::mutex mutex;
 
-    JSON_WRITER json_writer("bitcoinsv.json"); // create csv file and open file stream)
+    JSON_WRITER json_writer("bitcoinsv.json"); // create json file and open file stream)
 
     taskflow.for_each(vector_of_file_data.begin(), vector_of_file_data.end(), [&] (std::string* file_data) {
         uint32_t ptr = 0;
@@ -344,11 +383,11 @@ void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<s
 
         while (ptr < (*file_data).length()) {
             block_count++;
-            std::unordered_map<std::string, std::any>* block = parse_block(&ptr, file_data);
-
-            json_writer.write_hash(block); // write block to csv file
-
-            delete block; // dealloc memory for block
+            BSV_BLOCK block = parse_block(&ptr, file_data);
+            
+            mutex.lock();
+            json_writer.write_hash(block); // write block to json file
+            mutex.unlock();
         }
     });
 
@@ -367,11 +406,10 @@ void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<s
 void read_files_and_parse(std::string path, std::vector<std::string> file_names) {
     std::vector<std::string*> vector_of_file_data;
 
-    get_file_data(0, 1, path, file_names, &vector_of_file_data); // get file data for 1 file
+    get_file_data(0, 10, path, file_names, &vector_of_file_data);
 
     std::cout << "FINISHED READING FILES INTO MEMORY" << std::endl;
 
-    // parse_and_export_to_csv(file_names, vector_of_file_data);
     parse_and_export_to_json(file_names, vector_of_file_data);
 }
 
