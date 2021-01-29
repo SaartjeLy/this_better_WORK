@@ -35,24 +35,13 @@ void JSON_WRITER::write_line(std::string line, bool new_line) {
  * 
  * @param hash 
  */
-void JSON_WRITER::write_hash(std::unordered_map<std::string, std::any>* block) {
-    std::unordered_map<std::string, std::any>::iterator header_it = (*block).find("header");
-    if (header_it != (*block).end()) {
-        std::unordered_map<std::string, std::string> header = std::any_cast<std::unordered_map<std::string, std::string>>(header_it->second);
-        
-        // probably need more error checks here
-        std::string hash = header.find("previous_block_hash")->second;
+void JSON_WRITER::write_hash(BSV_BLOCK block) {
+    std::string* hash = block.get_previous_block_hash();
 
-        json_file << "\"";
-        write_line(hash, false);
-        json_file << "\",";
-        write_line("", true);
-
-    }
-    else {
-        perror("Can't find header in block");
-        exit(1);
-    }
+    json_file << "\"";
+    write_line(*hash, false);
+    json_file << "\",";
+    write_line("", true);
 }
 
 /**
