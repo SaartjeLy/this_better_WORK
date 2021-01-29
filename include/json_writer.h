@@ -3,6 +3,7 @@
 #include <any>
 #include <fstream>
 #include <mutex>
+#include "../include/bsv_block.h"
 
 #ifndef JSON_WRITER_H
 #define JSON_WRITER_H
@@ -15,7 +16,7 @@ class JSON_WRITER {
     public:
         std::mutex mutex;
         JSON_WRITER(std::string filename);
-        void write_hash(std::unordered_map<std::string, std::any>* block);
+        void write_hash(BSV_BLOCK block);
         void close();
 };
 
