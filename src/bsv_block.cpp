@@ -98,19 +98,19 @@ unsigned long BSV_BLOCK::read_variable_bytes(uint32_t* ptr, std::string* file_da
     if (val == 253) {
         std::string* two_byte_hex_string = read_bytes(ptr, 2, file_data);
         unsigned long two_byte_val = hex_to_int(two_byte_hex_string);
-        // delete two_byte_hex_string;
+        delete two_byte_hex_string;
         return two_byte_val;
     }
     else if (val == 254) {
         std::string* four_byte_hex_string = read_bytes(ptr, 4, file_data);
         unsigned long four_byte_val = hex_to_int(four_byte_hex_string);
-        // delete four_byte_hex_string;
+        delete four_byte_hex_string;
         return four_byte_val;
     }
     else if (val == 255) {
         std::string* eight_byte_hex_string = read_bytes(ptr, 8, file_data);
         unsigned long eight_byte_val = hex_to_int(eight_byte_hex_string);
-        // delete eight_byte_hex_string;
+        delete eight_byte_hex_string;
         return eight_byte_val;
     }
     else if (val > 255) {
@@ -118,7 +118,7 @@ unsigned long BSV_BLOCK::read_variable_bytes(uint32_t* ptr, std::string* file_da
         exit(1);
     }
 
-    // delete hex_string;
+    delete hex_string;
 
     return val;
 }
