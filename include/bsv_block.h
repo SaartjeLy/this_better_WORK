@@ -19,20 +19,20 @@ class BSV_BLOCK {
         unsigned long number_of_transactions;
         std::vector<std::string>* transactions;
 
-        void set_magic_number(std::string* magic_number);
-        void set_block_size(std::string* block_size);
-        void set_version(std::string* version);
-        void set_previous_block_hash(std::string* previous_block_hash);
-        void set_merkle_root(std::string* merkle_root);
-        void set_time(std::string* time);
-        void set_bits(std::string* bits);
-        void set_nonce(std::string* nonce);
+        void set_magic_number();
+        void set_block_size();
+        void set_version();
+        void set_previous_block_hash();
+        void set_merkle_root();
+        void set_time();
+        void set_bits();
+        void set_nonce();
         void set_number_of_transactions (unsigned long num_of_transactions);
         void add_transaction(std::string* transaction);
 
         unsigned long hex_to_int(std::string* hex_string);
-        std::string* read_bytes(uint32_t* ptr, int bytes, std::string* file_data);
-        unsigned long read_variable_bytes(uint32_t* ptr, std::string* file_data);
+        std::string* read_bytes(int bytes);
+        unsigned long read_variable_bytes();
         void parse_block();
     public:
         BSV_BLOCK(uint32_t* ptr, std::string* data);
