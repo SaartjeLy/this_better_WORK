@@ -32,17 +32,6 @@ std::string* get_hex(char* binary_string, int size) {
 }
 
 /**
- * @brief 
- * 
- * @param hex_string 
- * @return int 
- */
-unsigned long hex_to_int(std::string* hex_string) {
-    unsigned long val = std::stoul(*hex_string, 0, 16);
-    return val;
-}
-
-/**
  * @brief reads a number (to - from) of files in a parallelised way, storing the file data in a vector collection of strings
  * 
  * @param from 
@@ -114,224 +103,6 @@ std::vector<std::string> get_all_file_names(std::string path) {
 }
 
 /**
- * @brief reads some number of bytes from the block data, starting at a particular
- *        pointer, into a buffer then converts this the big-endian format in O(n) time
- * 
- * @param from pointer to start reading from
- * @param bytes number of bytes to read
- * @param block_data the block data to read from
- * @return std::string 
- */
-std::string* read_bytes(uint32_t* ptr, int bytes, std::string* file_data) {
-    std::string byte_string = (*file_data).substr(*ptr, bytes*2);
-    *ptr += bytes*2; // increments ptr as necessary
-
-    // convert to big-endian format in O(n) time
-    std::string* big_endian_byte_string = new std::string;
-    int local_ptr = bytes*2 - 1;
-    while (local_ptr >= 0) {
-        *big_endian_byte_string += byte_string.substr(local_ptr-1, 2);
-        local_ptr -= 2;
-    }
-    
-    return big_endian_byte_string;
-}
-
-/**
- * @brief reads a VarInt as per BSV block specs:
- *        252 or less, read 1 byte
- *        253, read 2 bytes
- *        254, read 4 bytes
- *        255, read 8 bytes
- * 
- * @param ptr 
- * @param bytes 
- * @param block_data 
- * @return int
- */
-unsigned long read_variable_bytes(uint32_t* ptr, std::string* file_data) {
-    std::string* hex_string = read_bytes(ptr, 1, file_data);
-    unsigned long val = hex_to_int(hex_string);
-
-    if (val == 253) {
-        std::string* two_byte_hex_string = read_bytes(ptr, 2, file_data);
-        unsigned long two_byte_val = hex_to_int(two_byte_hex_string);
-        delete two_byte_hex_string;
-        return two_byte_val;
-    }
-    else if (val == 254) {
-        std::string* four_byte_hex_string = read_bytes(ptr, 4, file_data);
-        unsigned long four_byte_val = hex_to_int(four_byte_hex_string);
-        delete four_byte_hex_string;
-        return four_byte_val;
-    }
-    else if (val == 255) {
-        std::string* eight_byte_hex_string = read_bytes(ptr, 8, file_data);
-        unsigned long eight_byte_val = hex_to_int(eight_byte_hex_string);
-        delete eight_byte_hex_string;
-        return eight_byte_val;
-    }
-    else if (val > 255) {
-        perror("VarInt greater than 255!");
-        exit(1);
-    }
-
-    delete hex_string;
-
-    return val;
-}
-
-/**
- * @brief parses the preamble section of the BSV block and returns a dictionary representation
- * 
- * @param block_data the BSV block data
- * @return std::unordered_map<std::string, std::string> 
- */
-std::unordered_map<std::string, std::string> parse_preamble(uint32_t* ptr, std::string* block_data) {
-    std::unordered_map<std::string, std::string> preamble;
-    preamble["magic_number"] = *read_bytes(ptr,4,block_data);
-    preamble["block_size"] = *read_bytes(ptr,4,block_data);
-
-    return preamble;
-}
-
-/**
- * @brief parses the header section of the BSV block and returns a dictionary representation
- * 
- * @param block_data the BSV block data
- * @return std::unordered_map<std::string, std::string> 
- */
-std::unordered_map<std::string, std::string> parse_header(uint32_t* ptr, std::string* block_data) {
-    std::unordered_map<std::string, std::string> header;
-    header["version"] = *read_bytes(ptr,4,block_data);
-    header["previous_block_hash"] = *read_bytes(ptr,32, block_data);
-    header["merkle_root"] = *read_bytes(ptr, 32, block_data);
-    header["time"] = *read_bytes(ptr, 4, block_data);
-    header["bits"] = *read_bytes(ptr, 4, block_data);
-    header["nonce"] = *read_bytes(ptr,4, block_data);
- 
-    return header;
-}
-
-/**
- * @brief 
- * 
- * @param ptr 
- * @param file_data 
- * @return std::vector<std::unordered_map<std::string, std::any>> 
- */
-std::vector<std::unordered_map<std::string, std::any>> parse_transactions(uint32_t* ptr, std::string* file_data) {
-    std::vector<std::unordered_map<std::string, std::any>> transactions;
-
-    unsigned long number_of_transactions = read_variable_bytes(ptr, file_data);
-    for(int i=0; i< number_of_transactions; i++) {
-        std::unordered_map<std::string, std::any> transaction;
-
-        transaction["version"] = *read_bytes(ptr, 4, file_data);
-
-        unsigned long number_of_inputs = read_variable_bytes(ptr, file_data);
-        std::vector<std::unordered_map<std::string, std::any>> transaction_inputs;
-        for(int x=0; x < number_of_inputs; x++) {
-            std::unordered_map<std::string, std::any> transaction_input;
-            
-            transaction_input["pre_transaction_hash"] = *read_bytes(ptr, 32, file_data);
-            transaction_input["pre_transaction_out_index"] = *read_bytes(ptr, 4, file_data);
-
-            unsigned long script_length = read_variable_bytes(ptr, file_data);
-
-            transaction_input["script_length"] = script_length;
-
-            std::string script = *read_bytes(ptr, script_length, file_data);
-
-            transaction_input["script"] = script;
-            transaction_input["sequence"] = *read_bytes(ptr, 4, file_data);
-
-            transaction_inputs.push_back(transaction_input);
-        }
-
-        unsigned long number_of_outputs = read_variable_bytes(ptr, file_data);
-        std::vector<std::unordered_map<std::string, std::any>> transaction_outputs;
-        for(int y=0; y < number_of_outputs; y++) {
-            std::unordered_map<std::string, std::any> transaction_output;
-
-            transaction_output["value"] = *read_bytes(ptr, 8, file_data);
-
-            unsigned long script_length = read_variable_bytes(ptr, file_data);
-            transaction_output["script_length"] = script_length;
-
-            transaction_output["script"] = *read_bytes(ptr, script_length, file_data);
-
-            transaction_outputs.push_back(transaction_output);
-        }
-
-        transaction["transaction_inputs"] = transaction_inputs;
-        transaction["transaction_outputs"] = transaction_outputs;
-        transaction["lock_time"] = *read_bytes(ptr, 4, file_data);
-
-        transactions.push_back(transaction);
-    }
-
-    return transactions;
-}
-
-/**
- * @brief parses a BSV block into its various sections and returns a dictionary representation
- * 
- * @param ptr 
- * @param file_data 
- * @return std::unordered_map<std::string, std::any>
- */
-BSV_BLOCK parse_block(uint32_t* ptr, std::string* file_data) {
-    BSV_BLOCK bsv_block;
-    
-    // preamble
-    bsv_block.set_magic_number(read_bytes(ptr,4,file_data));
-    bsv_block.set_block_size(read_bytes(ptr,4,file_data));
-
-    // header
-    bsv_block.set_version(read_bytes(ptr,4,file_data));
-    bsv_block.set_previous_block_hash(read_bytes(ptr,32,file_data));
-    bsv_block.set_merkle_root(read_bytes(ptr,32,file_data));
-    bsv_block.set_time(read_bytes(ptr,4,file_data));
-    bsv_block.set_bits(read_bytes(ptr,4,file_data));
-    bsv_block.set_nonce(read_bytes(ptr,4,file_data));
-
-    // transactions
-    unsigned long number_of_transactions = read_variable_bytes(ptr, file_data);
-    bsv_block.set_number_of_transactions(number_of_transactions);
-
-    for (int i=0; i<number_of_transactions; i++) {
-        std::string version = *read_bytes(ptr, 4, file_data);
-
-        unsigned long number_of_inputs = read_variable_bytes(ptr, file_data);
-        for( int x=0; x<number_of_inputs; x++) {
-            std::string pre_transaction_has = *read_bytes(ptr, 32, file_data);
-            std::string pre_transactions_out_index = *read_bytes(ptr, 4, file_data);
-
-            unsigned long script_length = read_variable_bytes(ptr, file_data);
-            std::string script_length_string = std::to_string(script_length);
-
-            std::string script = *read_bytes(ptr, script_length, file_data);
-            std::string sequence = *read_bytes(ptr, 4, file_data);
-        }
-
-        unsigned long number_of_outputs = read_variable_bytes(ptr, file_data);
-        for( int y=0; y<number_of_outputs; y++) {
-            std::string value = *read_bytes(ptr, 8, file_data);
-
-            unsigned long script_length = read_variable_bytes(ptr, file_data);
-            std::string script_length_string = std::to_string(script_length);
-
-            std::string script = *read_bytes(ptr, script_length, file_data);
-        }
-    
-        std::string lock_time = *read_bytes(ptr, 4, file_data);
-    }
-
-    return bsv_block;
-}
-
-/**
  * @brief parse all files in the file data vector and write block headers to csv
  * 
  * @param file_names 
@@ -349,7 +120,7 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
 
         while (ptr < (*file_data).length()) {
             block_count++;
-            BSV_BLOCK block = parse_block(&ptr, file_data);
+            BSV_BLOCK block(&ptr, file_data);
 
             //TODO: re-implement write_block for CSV_WRITER class
             // csv_writer.write_block("blkxxxxx.dat", block); // write block to csv file
@@ -383,7 +154,7 @@ void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<s
 
         while (ptr < (*file_data).length()) {
             block_count++;
-            BSV_BLOCK block = parse_block(&ptr, file_data);
+            BSV_BLOCK block(&ptr, file_data);
             
             mutex.lock();
             json_writer.write_hash(block); // write block to json file
