@@ -22,31 +22,31 @@ void BSV_BLOCK::parse_block() {
     set_number_of_transactions(number_of_transactions);
 
     for (int i=0; i<number_of_transactions; i++) {
-        std::string version = *read_bytes(4);
+        std::string version = read_bytes(4);
 
         unsigned long number_of_inputs = read_variable_bytes();
         for( int x=0; x<number_of_inputs; x++) {
-            std::string pre_transaction_has = *read_bytes(32);
-            std::string pre_transactions_out_index = *read_bytes(4);
+            std::string pre_transaction_has = read_bytes(32);
+            std::string pre_transactions_out_index = read_bytes(4);
 
             unsigned long script_length = read_variable_bytes();
             std::string script_length_string = std::to_string(script_length);
 
-            std::string script = *read_bytes(script_length);
-            std::string sequence = *read_bytes(4);
+            std::string script = read_bytes(script_length);
+            std::string sequence = read_bytes(4);
         }
 
         unsigned long number_of_outputs = read_variable_bytes();
         for( int y=0; y<number_of_outputs; y++) {
-            std::string value = *read_bytes(8);
+            std::string value = read_bytes(8);
 
             unsigned long script_length = read_variable_bytes();
             std::string script_length_string = std::to_string(script_length);
 
-            std::string script = *read_bytes(script_length);
+            std::string script = read_bytes(script_length);
         }
     
-        std::string lock_time = *read_bytes(4);
+        std::string lock_time = read_bytes(4);
     }
 }
 
@@ -56,8 +56,8 @@ void BSV_BLOCK::parse_block() {
  * @param hex_string 
  * @return unsigned long 
  */
-unsigned long BSV_BLOCK::hex_to_int(std::string* hex_string) {
-    unsigned long val = std::stoul(*hex_string, 0, 16);
+unsigned long BSV_BLOCK::hex_to_int(std::string hex_string) {
+    unsigned long val = std::stoul(hex_string, 0, 16);
     return val;
 }
 
@@ -67,15 +67,15 @@ unsigned long BSV_BLOCK::hex_to_int(std::string* hex_string) {
  * @param bytes 
  * @return std::string* 
  */
-std::string* BSV_BLOCK::read_bytes(int bytes) {
+std::string BSV_BLOCK::read_bytes(int bytes) {
     std::string byte_string = (*file_data).substr(*ptr, bytes*2);
     *ptr += bytes*2; // increments ptr as necessary
 
     // convert to big-endian format in O(n) time
-    std::string* big_endian_byte_string = new std::string;
+    std::string big_endian_byte_string;
     int local_ptr = bytes*2 - 1;
     while (local_ptr >= 0) {
-        *big_endian_byte_string += byte_string.substr(local_ptr-1, 2);
+        big_endian_byte_string += byte_string.substr(local_ptr-1, 2);
         local_ptr -= 2;
     }
     
@@ -88,25 +88,25 @@ std::string* BSV_BLOCK::read_bytes(int bytes) {
  * @return unsigned long 
  */
 unsigned long BSV_BLOCK::read_variable_bytes() {
-    std::string* hex_string = read_bytes(1);
+    std::string hex_string = read_bytes(1);
     unsigned long val = hex_to_int(hex_string);
 
     if (val == 253) {
-        std::string* two_byte_hex_string = read_bytes(2);
+        std::string two_byte_hex_string = read_bytes(2);
         unsigned long two_byte_val = hex_to_int(two_byte_hex_string);
-        delete two_byte_hex_string;
+        // delete two_byte_hex_string;
         return two_byte_val;
     }
     else if (val == 254) {
-        std::string* four_byte_hex_string = read_bytes(4);
+        std::string four_byte_hex_string = read_bytes(4);
         unsigned long four_byte_val = hex_to_int(four_byte_hex_string);
-        delete four_byte_hex_string;
+        // delete four_byte_hex_string;
         return four_byte_val;
     }
     else if (val == 255) {
-        std::string* eight_byte_hex_string = read_bytes(8);
+        std::string eight_byte_hex_string = read_bytes(8);
         unsigned long eight_byte_val = hex_to_int(eight_byte_hex_string);
-        delete eight_byte_hex_string;
+        // delete eight_byte_hex_string;
         return eight_byte_val;
     }
     else if (val > 255) {
@@ -114,40 +114,40 @@ unsigned long BSV_BLOCK::read_variable_bytes() {
         exit(1);
     }
 
-    delete hex_string;
+    // delete hex_string;
 
     return val;
 }
 
-std::string* BSV_BLOCK::get_magic_number() {
+std::string BSV_BLOCK::get_magic_number() {
     return magic_number;
 }
 
-std::string* BSV_BLOCK::get_block_size() {
+std::string BSV_BLOCK::get_block_size() {
     return block_size;
 }
 
-std::string* BSV_BLOCK::get_version() {
+std::string BSV_BLOCK::get_version() {
     return version;
 }
 
-std::string* BSV_BLOCK::get_previous_block_hash() {
+std::string BSV_BLOCK::get_previous_block_hash() {
     return previous_block_hash;
 }
 
-std::string* BSV_BLOCK::get_merkle_root() {
+std::string BSV_BLOCK::get_merkle_root() {
     return merkle_root;
 }
 
-std::string* BSV_BLOCK::get_time() {
+std::string BSV_BLOCK::get_time() {
     return time;
 }
 
-std::string* BSV_BLOCK::get_bits() {
+std::string BSV_BLOCK::get_bits() {
     return bits;
 }
 
-std::string* BSV_BLOCK::get_nonce() {
+std::string BSV_BLOCK::get_nonce() {
     return nonce;
 }
 
