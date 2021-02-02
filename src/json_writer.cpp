@@ -36,10 +36,10 @@ void JSON_WRITER::write_line(std::string line, bool new_line) {
  * @param hash 
  */
 void JSON_WRITER::write_hash(BSV_BLOCK block) {
-    std::string* hash = block.get_previous_block_hash();
+    std::string hash = block.get_previous_block_hash();
 
     json_file << "\"";
-    write_line(*hash, false);
+    write_line(hash, false);
     json_file << "\",";
     write_line("", true);
 }
