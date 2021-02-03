@@ -74,8 +74,6 @@ void get_file_data(int from, int to, std::string path, std::vector<std::string> 
 
     executorA.run(taskflow).wait();
     taskflow.clear();
-
-    std::cout << to << " DONE!" << std::endl;
 }
 
 /**
@@ -174,14 +172,28 @@ void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<s
  * @param path absolute path to the directory holding the .dat bsv block files
  * @param block_numbers string vector of the .dat filenames
  */
-void read_files_and_parse(std::string path, std::vector<std::string> file_names) {
+uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_names) {
     std::vector<std::string*> vector_of_file_data;
 
-    get_file_data(0, 10, path, file_names, &vector_of_file_data);
+    auto read_start = std::chrono::high_resolution_clock::now();
 
-    std::cout << "FINISHED READING FILES INTO MEMORY" << std::endl;
+    get_file_data(0, 500, path, file_names, &vector_of_file_data);
+
+    auto read_end = std::chrono::high_resolution_clock::now();
+    auto read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(read_end-read_start).count();
+    std::cout << "It took " << read_duration << "ms to read " << vector_of_file_data.size() << " files into memory!" << std::endl;
+    std::cout << "READ RATE: " << ((double)128 * vector_of_file_data.size()) / ((double)read_duration/1000) << "MB/s\n" << std::endl;
+
+    auto parse_start = std::chrono::high_resolution_clock::now();
 
     parse_and_export_to_json(file_names, vector_of_file_data);
+
+    auto parse_end = std::chrono::high_resolution_clock::now();
+    auto parse_duration = std::chrono::duration_cast<std::chrono::milliseconds>(parse_end-parse_start).count();
+    std::cout << "It took " << parse_duration << "ms to parse " << vector_of_file_data.size() << " files!" << std::endl;
+    std::cout << "PARSE RATE: " << ((double)128 * vector_of_file_data.size()) / ((double)parse_duration/1000) << "MB/s\n" << std::endl;
+
+    return vector_of_file_data.size();
 }
 
 int main(int argc, char* argv[]) {
@@ -200,13 +212,13 @@ int main(int argc, char* argv[]) {
     std::cout << "now parsing" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
-    read_files_and_parse(path, file_names);
+    uint16_t num_of_files_parsed = read_files_and_parse(path, file_names);
     
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-    
-    std::cout << "finished parsing!\n" << std::endl;
-    std::cout << "It took " << duration << "ms to parse " << file_names.size() << " files!" << std::endl;
+
+    std::cout << "TOTAL TIME: " << duration << "ms" << std::endl;
+    std::cout << "TOTAL READ & PARSE RATE: " << ((double)128 * num_of_files_parsed) / ((double)duration/1000) << "MB/s" << std::endl;
 
     return 0;
 }
