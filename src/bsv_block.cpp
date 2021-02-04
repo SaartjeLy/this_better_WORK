@@ -21,31 +21,37 @@ void BSV_BLOCK::parse_block() {
     number_of_transactions = read_variable_bytes();
 
     for (int i=0; i<number_of_transactions; i++) {
-        std::string version = read_bytes(4);
+        BSV_TRANSACTION transaction;
 
-        unsigned long number_of_inputs = read_variable_bytes();
-        for( int x=0; x<number_of_inputs; x++) {
-            std::string pre_transaction_has = read_bytes(32);
-            std::string pre_transactions_out_index = read_bytes(4);
+        transaction.version = read_bytes(4);
 
-            unsigned long script_length = read_variable_bytes();
-            std::string script_length_string = std::to_string(script_length);
+        transaction.number_of_inputs = read_variable_bytes();
+        for( int x=0; x<transaction.number_of_inputs; x++) {
+            BSV_INPUT input;
 
-            std::string script = read_bytes(script_length);
-            std::string sequence = read_bytes(4);
+            input.pre_transaction_hash = read_bytes(32);
+            input.pre_transaction_out_index = read_bytes(4);
+            input.script_length = read_variable_bytes();
+            input.script = read_bytes(input.script_length);
+            input.sequence = read_bytes(4);
+
+            transaction.inputs.push_back(input);
         }
 
-        unsigned long number_of_outputs = read_variable_bytes();
-        for( int y=0; y<number_of_outputs; y++) {
-            std::string value = read_bytes(8);
+        transaction.number_of_outputs = read_variable_bytes();
+        for( int y=0; y<transaction.number_of_outputs; y++) {
+            BSV_OUTPUT output;
 
-            unsigned long script_length = read_variable_bytes();
-            std::string script_length_string = std::to_string(script_length);
+            output.value = read_bytes(8);
+            output.script_length = read_variable_bytes();
+            output.script = read_bytes(output.script_length);
 
-            std::string script = read_bytes(script_length);
+            transaction.outputs.push_back(output);
         }
     
-        std::string lock_time = read_bytes(4);
+        transaction.lock_time = read_bytes(4);
+
+        transactions.push_back(transaction);
     }
 }
 
