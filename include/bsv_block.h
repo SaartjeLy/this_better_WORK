@@ -1,5 +1,8 @@
 #include <string>
 #include <vector>
+#include "bsv_transaction.h"
+#include "bsv_output.h"
+#include "bsv_input.h"
 
 #ifndef BSV_BLOCK_H
 #define BSV_BLOCK_H
@@ -27,6 +30,7 @@ class BSV_BLOCK {
         std::string bits;
         std::string nonce;
         unsigned long number_of_transactions;
+        std::vector<BSV_TRANSACTION> transactions;
 };
 
 #endif
