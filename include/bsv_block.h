@@ -30,7 +30,7 @@ class BSV_BLOCK {
         std::string bits;
         std::string nonce;
         unsigned long number_of_transactions;
-        std::vector<BSV_TRANSACTION> transactions;
+        std::vector<BSV_TRANSACTION*> transactions;
 };
 
 #endif
