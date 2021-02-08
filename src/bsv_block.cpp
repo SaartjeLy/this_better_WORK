@@ -19,13 +19,14 @@ void BSV_BLOCK::parse_block() {
 
     // transactions
     number_of_transactions = read_variable_bytes();
-
+    transactions.reserve(number_of_transactions);
     for (int i=0; i<number_of_transactions; i++) {
         BSV_TRANSACTION transaction;
 
         transaction.version = read_bytes(4);
 
         transaction.number_of_inputs = read_variable_bytes();
+        transaction.inputs.reserve(transaction.number_of_inputs);
         for( int x=0; x<transaction.number_of_inputs; x++) {
             BSV_INPUT input;
 
@@ -35,10 +36,11 @@ void BSV_BLOCK::parse_block() {
             input.script = read_bytes(input.script_length);
             input.sequence = read_bytes(4);
 
-            transaction.inputs.push_back(input);
+            transaction.inputs.push_back(&input);
         }
 
         transaction.number_of_outputs = read_variable_bytes();
+        transaction.outputs.reserve(transaction.number_of_outputs);
         for( int y=0; y<transaction.number_of_outputs; y++) {
             BSV_OUTPUT output;
 
@@ -46,12 +48,12 @@ void BSV_BLOCK::parse_block() {
             output.script_length = read_variable_bytes();
             output.script = read_bytes(output.script_length);
 
-            transaction.outputs.push_back(output);
+            transaction.outputs.push_back(&output);
         }
     
         transaction.lock_time = read_bytes(4);
 
-        transactions.push_back(transaction);
+        transactions.push_back(&transaction);
     }
 }
 
