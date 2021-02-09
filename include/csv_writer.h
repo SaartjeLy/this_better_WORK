@@ -3,6 +3,7 @@
 #include <any>
 #include <fstream>
 #include <mutex>
+#include "../include/bsv_block.h"
 
 #ifndef CSV_WRITER_H
 #define CSV_WRITER_H
@@ -15,7 +16,7 @@ class CSV_WRITER {
     public:
         std::mutex mutex;
         CSV_WRITER(std::string filename);
-        void write_block(std::string block_number, std::unordered_map<std::string, std::any>* block);
+        void write_block(uint32_t block_number, BSV_BLOCK block);
         void close();
 };
 
