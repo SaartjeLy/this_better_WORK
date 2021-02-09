@@ -109,6 +109,7 @@ std::vector<std::string> get_all_file_names(std::string path) {
 void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data) {
     tf::Taskflow taskflow;
     tf::Executor executor;
+    std::mutex mutex;
 
     CSV_WRITER csv_writer("bitcoinsv.csv"); // create csv file and open file stream)
 
@@ -117,13 +118,12 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
         uint32_t block_count = 0;
 
         while (ptr < (*file_data).length()) {
-            block_count++;
             BSV_BLOCK block(&ptr, file_data);
 
-            //TODO: re-implement write_block for CSV_WRITER class
-            // csv_writer.write_block("blkxxxxx.dat", block); // write block to csv file
-
-            // delete block; // dealloc memory for block
+            mutex.lock();
+            csv_writer.write_block(block_count, block); // write block to csv file
+            block_count++;
+            mutex.unlock();
         }
     });
 
@@ -151,11 +151,11 @@ void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<s
         uint32_t block_count = 0;
 
         while (ptr < (*file_data).length()) {
-            block_count++;
             BSV_BLOCK block(&ptr, file_data);
             
             mutex.lock();
             json_writer.write_hash(block); // write block to json file
+            block_count++;
             mutex.unlock();
         }
     });
@@ -177,7 +177,7 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
 
     auto read_start = std::chrono::high_resolution_clock::now();
 
-    get_file_data(0, 500, path, file_names, &vector_of_file_data);
+    get_file_data(0, 100, path, file_names, &vector_of_file_data);
 
     auto read_end = std::chrono::high_resolution_clock::now();
     auto read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(read_end-read_start).count();
@@ -186,7 +186,8 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
 
     auto parse_start = std::chrono::high_resolution_clock::now();
 
-    parse_and_export_to_json(file_names, vector_of_file_data);
+    // parse_and_export_to_json(file_names, vector_of_file_data);
+    parse_and_export_to_csv(file_names, vector_of_file_data);
 
     auto parse_end = std::chrono::high_resolution_clock::now();
     auto parse_duration = std::chrono::duration_cast<std::chrono::milliseconds>(parse_end-parse_start).count();
