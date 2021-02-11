@@ -17,7 +17,7 @@ class JSON_WRITER {
         std::mutex mutex;
         JSON_WRITER(std::string filename);
         void write_line(std::string line, bool new_line);
-        void write_hash(BSV_BLOCK block);
+        void write_hash(BSV_BLOCK* block);
         void write_twetches(BSV_BLOCK* block);
         void close();
 };
