@@ -34,9 +34,9 @@ void JSON_WRITER::write_line(std::string line, bool new_line) {
  * 
  * @param hash 
  */
-void JSON_WRITER::write_hash(BSV_BLOCK block) {
+void JSON_WRITER::write_hash(BSV_BLOCK* block) {
     json_file << "\"";
-    write_line(block.previous_block_hash, false);
+    write_line(block->previous_block_hash, false);
     json_file << "\",";
     write_line("", true);
 }
@@ -88,19 +88,19 @@ void JSON_WRITER::write_twetches(BSV_BLOCK* block) {
     uint8_t prefix_length = twetch_prefix.length();
     uint8_t suffix_length = twetch_suffix.length();
 
-    for(BSV_TRANSACTION* transaction : block->transactions) {
-        for(BSV_OUTPUT* output : transaction->outputs) {
+    for(BSV_TRANSACTION transaction : block->transactions) {
+        for(BSV_OUTPUT output : transaction.outputs) {
             uint32_t local_ptr = 0;
-            std::size_t suffix_pos = output->script.find(twetch_suffix, local_ptr); // starting ptr to suffix
-
+            std::size_t suffix_pos = output.script.find(twetch_suffix, local_ptr); // starting ptr to suffix
+            
             if (suffix_pos != std::string::npos) {
                 local_ptr = suffix_pos+suffix_length; // increment local_ptr to end of suffix
 
-                std::size_t prefix_pos = output->script.find(twetch_prefix, local_ptr); // starting ptr to prefix
+                std::size_t prefix_pos = output.script.find(twetch_prefix, local_ptr); // starting ptr to prefix
                 if (prefix_pos != std::string::npos) {
                     local_ptr = prefix_pos+prefix_length; // increment local_ptr to end of suffix
                     size_t output_data_length = prefix_pos+prefix_length - suffix_pos; // length is whatever is between prefix & suffix (inclusive)
-                    std::string output_data = output->script.substr(suffix_pos, output_data_length);
+                    std::string output_data = output.script.substr(suffix_pos, output_data_length);
 
                     // check if output data has "twetch" in it, if so, write data to file
                     size_t pos = output_data.find("686374657774");
