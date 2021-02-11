@@ -29,7 +29,7 @@ void CSV_WRITER::write_line(std::string line) {
  * @param block_number the block number
  * @param block unordered map of block data
  */
-void CSV_WRITER::write_block(uint32_t block_number, BSV_BLOCK block) {
+void CSV_WRITER::write_header(uint32_t block_number, BSV_BLOCK block) {
     std::string line;
 
     line += std::to_string(block_number) + ",";

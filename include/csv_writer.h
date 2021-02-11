@@ -16,7 +16,7 @@ class CSV_WRITER {
     public:
         std::mutex mutex;
         CSV_WRITER(std::string filename);
-        void write_block(uint32_t block_number, BSV_BLOCK block);
+        void write_header(uint32_t block_number, BSV_BLOCK block);
         void close();
 };
 
