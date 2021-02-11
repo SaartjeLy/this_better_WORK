@@ -12,11 +12,13 @@ class JSON_WRITER {
     private:
         std::ofstream json_file;
         std::string filename;
-        void write_line(std::string line, bool new_line);
+        std::string get_ascii(std::string big_endian_string);
     public:
         std::mutex mutex;
         JSON_WRITER(std::string filename);
-        void write_hash(BSV_BLOCK block);
+        void write_line(std::string line, bool new_line);
+        void write_hash(BSV_BLOCK* block);
+        void write_twetches(BSV_BLOCK* block);
         void close();
 };
 

@@ -11,7 +11,7 @@ class BSV_OUTPUT {
         ~BSV_OUTPUT();
 
         std::string value;
-        unsigned long script_length;
+        unsigned long long script_length;
         std::string script;
 };
 
