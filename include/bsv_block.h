@@ -17,9 +17,9 @@ class BSV_BLOCK {
         BSV_BLOCK(uint32_t* ptr, std::string* data);
         ~BSV_BLOCK();
 
-        unsigned long hex_to_int(std::string hex_string);
+        unsigned long long hex_to_int(std::string hex_string);
         std::string read_bytes(int bytes);
-        unsigned long read_variable_bytes();
+        unsigned long long read_variable_bytes();
 
         std::string magic_number;
         std::string block_size;
@@ -29,7 +29,7 @@ class BSV_BLOCK {
         std::string time;
         std::string bits;
         std::string nonce;
-        unsigned long number_of_transactions;
+        unsigned long long number_of_transactions;
         std::vector<BSV_TRANSACTION*> transactions;
 };
 

@@ -12,7 +12,7 @@ class BSV_INPUT {
 
         std::string pre_transaction_hash;
         std::string pre_transaction_out_index;
-        unsigned long script_length;
+        unsigned long long script_length;
         std::string script;
         std::string sequence;
 };

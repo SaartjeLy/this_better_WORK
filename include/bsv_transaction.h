@@ -13,9 +13,9 @@ class BSV_TRANSACTION {
         ~BSV_TRANSACTION();
 
         std::string version;
-        unsigned long number_of_inputs;
+        unsigned long long number_of_inputs;
         std::vector<BSV_INPUT*> inputs;
-        unsigned long number_of_outputs;
+        unsigned long long number_of_outputs;
         std::vector<BSV_OUTPUT*> outputs;
         std::string lock_time;
 };
