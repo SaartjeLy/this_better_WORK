@@ -11,8 +11,6 @@ class BSV_BLOCK {
     private:
         uint32_t* ptr;
         std::string* file_data;
-
-        void parse_block();
     public:
         BSV_BLOCK(uint32_t* ptr, std::string* data);
         ~BSV_BLOCK();
@@ -30,7 +28,7 @@ class BSV_BLOCK {
         std::string bits;
         std::string nonce;
         unsigned long long number_of_transactions;
-        std::vector<BSV_TRANSACTION*> transactions;
+        std::vector<BSV_TRANSACTION> transactions;
 };
 
 #endif
