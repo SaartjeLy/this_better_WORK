@@ -14,9 +14,8 @@ _NOTE: the 21e8 supermicro has ~192GB memory, so parsing the entire blockchain s
 # Running
 
 ```bash
-cd src
-git clone git@github.com:taskflow/taskflow.git
-cd ../
+git clone --recurse-submodules https://github.com/21e8-ltd/21e8-parser
+cd 21e8-parser
 make -j
 ./parser <location of dat files>
 ```
