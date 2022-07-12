@@ -212,7 +212,7 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
 
 int main(int argc, char* argv[]) {
     if(argc < 2) {
-        perror("Provide path to block files as an arg when running main.o");
+        perror("Provide path to block files as an arg when running parser");
         exit(1);
     }
 

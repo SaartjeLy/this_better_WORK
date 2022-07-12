@@ -11,6 +11,16 @@ can currently read the first 500 blk files (blk00000.dat - blk00499.dat) into me
 at this current parse rate, it should take roughly 278000 / 1520.37 = __~182s__ to read the entire blockchain into memory, and __~241s__ to parse the blockchain in memory.    
 _NOTE: the 21e8 supermicro has ~192GB memory, so parsing the entire blockchain still needs to be done using batched processing!_    
 
+# Running
+
+```bash
+cd src
+git clone git@github.com:taskflow/taskflow.git
+cd ../
+make -j
+./parser <location of dat files>
+```
+
 # parser details
 
 build and run using __build/run.sh__. the parser first will parse blkXXXXX.dat files and output either csv or json files, please read through __src/main.cpp__, __src/bsv_block.cpp__, __src/json_writer.cpp__, and __src/csv_writer.cpp__ to understand the general flow and what features the parser has.   

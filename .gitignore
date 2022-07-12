@@ -2,4 +2,5 @@
 build/*.o
 build/*.csv
 build/*.json
-/lib/taskflow
+/src/taskflow
+parser
