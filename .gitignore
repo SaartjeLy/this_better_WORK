@@ -2,5 +2,4 @@
 build/*.o
 build/*.csv
 build/*.json
-/src/taskflow
 parser
