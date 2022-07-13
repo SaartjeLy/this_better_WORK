@@ -3,3 +3,4 @@ build/*.o
 build/*.csv
 build/*.json
 parser
+bitcoinsv.csv

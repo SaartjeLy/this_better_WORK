@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <chrono>
 #include <mutex>
-#include <experimental/filesystem>
+#include <filesystem>
 #include "taskflow/taskflow/taskflow.hpp"
 #include "../include/csv_writer.h"
 #include "../include/json_writer.h"
@@ -86,7 +86,7 @@ std::vector<std::string> get_all_file_names(std::string path) {
     // reads all files in the blocks directory and returns an array of present blkXXXXX.dat filenames
     std::vector<std::string> file_names;
 
-    for(const auto entry : std::experimental::filesystem::directory_iterator(path)) {
+    for(const auto entry : std::filesystem::directory_iterator(path)) {
         std::string file_path = entry.path();
 
         // verifying the file is a .dat BLOCK file 
