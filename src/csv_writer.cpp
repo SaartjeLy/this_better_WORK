@@ -8,6 +8,7 @@ CSV_WRITER::CSV_WRITER(std::string filename, bool twetches) : filename(filename)
 
     if(std::filesystem::exists("./"+filename)) {
         csv_file.open(filename, std::ios_base::app);
+        write_line("block_number,block_hash,magic_number,block_size,version,previous_block_hash,merkle_root,time,difficulty,nonce,number_of_transactions"); 
     }
     else if (twetches == 0) {
         csv_file.open(filename, std::ios_base::app);
@@ -40,13 +41,16 @@ void CSV_WRITER::write_header(uint32_t block_number, BSV_BLOCK block) {
     std::string line;
 
     line += std::to_string(block_number) + ",";
+    line += block.block_hash + ",";
     line += block.magic_number + ",";
     line += block.block_size + ",";
     line += block.version + ",";
     line += block.previous_block_hash + ",";
     line += block.merkle_root + ",";
     line += block.time + ",";
+    line += block.bits + ",";
     line += block.nonce + ",";
+    line += std::to_string(block.number_of_transactions);
 
     write_line(line);
 }

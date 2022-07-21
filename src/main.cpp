@@ -111,8 +111,8 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
     tf::Executor executor;
     std::mutex mutex;
 
-    // CSV_WRITER csv_writer("bitcoinsv.csv", false); // create csv file and open file stream)
-    CSV_WRITER csv_writer("bitcoinsv.csv", true); // create csv file and open file stream)
+    CSV_WRITER csv_writer("bitcoinsv.csv", false); // create csv file and open file stream)
+    // CSV_WRITER csv_writer("bitcoinsv.csv", true); // create csv file and open file stream)
 
     uint64_t max_count = 0;
 
@@ -120,12 +120,12 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
         uint32_t ptr = 0;
         uint32_t block_count = 0;
 
-        while (ptr < (*file_data).length()) {
+        while ((*file_data)[ptr] != '\0') {
             BSV_BLOCK block(&ptr, file_data);
 
             mutex.lock();
-            // csv_writer.write_header(block_count, block); // write block to csv file
-            csv_writer.write_twetch_count(max_count + block_count, &block); // write twetch count to csv file
+            csv_writer.write_header(block_count, block); // write block to csv file
+            // csv_writer.write_twetch_count(max_count + block_count, &block); // write twetch count to csv file
             block_count++;
             mutex.unlock();
         }
@@ -166,7 +166,7 @@ void parse_and_export_to_json(std::vector<std::string> file_names, std::vector<s
             mutex.lock();
 
             // json_writer.write_hash(&block); // write block to json file
-            json_writer.write_twetches(&block); // write all twetches to json file
+            // json_writer.write_twetches(&block); // write all twetches to json file
 
             block_count++;
             mutex.unlock();
@@ -190,7 +190,7 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
 
     auto read_start = std::chrono::high_resolution_clock::now();
 
-    get_file_data(1600, 2031, path, file_names, &vector_of_file_data);
+    get_file_data(1, 2, path, file_names, &vector_of_file_data);
 
     auto read_end = std::chrono::high_resolution_clock::now();
     auto read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(read_end-read_start).count();

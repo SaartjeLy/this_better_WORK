@@ -1,17 +1,75 @@
 #include "../include/bsv_block.h"
 
+std::string BSV_BLOCK::reverse_pairs(std::string const & src)
+{
+    assert(src.size() % 2 == 0);
+    std::string result;
+    result.reserve(src.size());
+
+    for (std::size_t i = src.size(); i != 0; i -= 2)
+    {
+        result.append(src, i - 2, 2);
+    }
+
+    return result;
+}
+
+std::string BSV_BLOCK::get_blockHash(std::string version, std::string previous_block_hash, std::string merkle_root, std::string time, std::string bits, std::string nonce)
+{
+    using namespace CryptoPP;
+    SHA256 hash;
+    HexDecoder decoder;
+    std::string result;
+    std::string decoded;
+    std::string to_hash = reverse_pairs(version)+reverse_pairs(previous_block_hash)+reverse_pairs(merkle_root)+reverse_pairs(time)+reverse_pairs(bits)+reverse_pairs(nonce);
+
+    decoder.Attach( new StringSink( decoded ) );
+    decoder.Put( (byte*)to_hash.data(), to_hash.size() );
+    decoder.MessageEnd();
+    std::string out;
+
+    StringSource foo(decoded, true, 
+        new HashFilter(hash,new StringSink(out))
+    );
+    StringSource poo(out, true, 
+        new HashFilter(hash,new HexEncoder(new StringSink(result),true))
+    );
+
+    return reverse_pairs(result);
+}
+
 BSV_BLOCK::BSV_BLOCK(uint32_t* ptr, std::string* data) : file_data(data), ptr(ptr) {
+     
+
     // preamble
     magic_number = read_bytes(4);
+
     block_size = read_bytes(4);
+    
 
     // header
     version = read_bytes(4);
     previous_block_hash = read_bytes(32);
     merkle_root = read_bytes(32);
+    
     time = read_bytes(4);
+
     bits = read_bytes(4);
     nonce = read_bytes(4);
+    block_hash = get_blockHash(version, previous_block_hash, merkle_root, time, bits, nonce);
+
+    std::cout << "" << version << "" << previous_block_hash << "" << merkle_root << "" << time << "" << bits << "" << nonce << "\n"; 
+
+    // std::cout << "\nVersion: " << reverse_pairs(version) << "\nPrevious_block_hash: " << reverse_pairs(previous_block_hash) << "\nMerkle Root: " << reverse_pairs(merkle_root) << "\nTime: " << reverse_pairs(time) << "\nBits: " << reverse_pairs(bits) << "\nNonce: " << reverse_pairs(nonce) << "\n"; 
+   
+    
+
+
+    block_size = std::to_string(hex_to_int(block_size));
+    time = std::to_string(hex_to_int(time));
+    bits = std::to_string(hex_to_int(bits));
+    nonce = std::to_string(hex_to_int(nonce));
+
 
     // transactions
     number_of_transactions = read_variable_bytes();
