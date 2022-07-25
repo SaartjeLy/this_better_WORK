@@ -77,6 +77,39 @@ void get_file_data(int from, int to, std::string path, std::vector<std::string> 
 }
 
 /**
+ * @brief reads a file storing the file data in a vector collection of strings
+ * 
+ * @param path 
+ * @param file_names 
+ * @param collection 
+ */
+void get_file_data(std::string path, std::vector<std::string> file_names, std::vector<std::string*>* collection) {    
+
+    // open file
+    std::ifstream file;
+    file.open(path, std::ios::ate|std::ios::binary|std::ios::in);
+
+    // exit if the file doesn't exist
+    if(!file.is_open()) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // read input (each char is in 2's comp format)
+    std::ifstream::pos_type size = file.tellg();
+    char* buffer = new char[size];
+    file.seekg(0, std::ios::beg);
+    file.read(buffer, size);
+    file.close();
+
+    std::string* hex_string_of_data = get_hex(buffer, size);
+    delete [] buffer;
+    
+    (*collection).push_back(hex_string_of_data);
+
+}
+
+/**
  * @brief gets a vector of all the block file names
  * 
  * @param path the absolute path to the directory with all the block files
@@ -106,12 +139,12 @@ std::vector<std::string> get_all_file_names(std::string path) {
  * @param file_names 
  * @param vector_of_file_data 
  */
-void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data) {
+void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data, std::string name = "bitcoinsv.csv") {
     tf::Taskflow taskflow;
     tf::Executor executor;
     std::mutex mutex;
 
-    CSV_WRITER csv_writer("bitcoinsv.csv", false); // create csv file and open file stream)
+    CSV_WRITER csv_writer(name, false); // create csv file and open file stream)
     // CSV_WRITER csv_writer("bitcoinsv.csv", true); // create csv file and open file stream)
 
     uint64_t max_count = 0;
@@ -190,7 +223,7 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
 
     auto read_start = std::chrono::high_resolution_clock::now();
 
-    get_file_data(1, 2, path, file_names, &vector_of_file_data);
+    get_file_data(2, 3, path, file_names, &vector_of_file_data);
 
     auto read_end = std::chrono::high_resolution_clock::now();
     auto read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(read_end-read_start).count();
@@ -210,29 +243,90 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
     return vector_of_file_data.size();
 }
 
+/**
+ * @brief parses the bsv blocks and exports to CSV
+ * 
+ * @param path absolute path to the directory holding the .dat bsv block files
+ * @param block_numbers string vector of the .dat filenames
+ */
+uint16_t read_file_and_parse(std::string path, std::vector<std::string> file_names, std::string name) {
+    std::vector<std::string*> vector_of_file_data;
+
+    auto read_start = std::chrono::high_resolution_clock::now();
+
+    get_file_data(path, file_names, &vector_of_file_data);
+
+    auto read_end = std::chrono::high_resolution_clock::now();
+    auto read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(read_end-read_start).count();
+    std::cout << "It took " << read_duration << "ms to read " << vector_of_file_data.size() << " files into memory!" << std::endl;
+    std::cout << "READ RATE: " << ((double)128 * vector_of_file_data.size()) / ((double)read_duration/1000) << "MB/s\n" << std::endl;
+
+    auto parse_start = std::chrono::high_resolution_clock::now();
+
+    // parse_and_export_to_json(file_names, vector_of_file_data);
+    parse_and_export_to_csv(file_names, vector_of_file_data, name);
+
+    auto parse_end = std::chrono::high_resolution_clock::now();
+    auto parse_duration = std::chrono::duration_cast<std::chrono::milliseconds>(parse_end-parse_start).count();
+    std::cout << "It took " << parse_duration << "ms to parse " << vector_of_file_data.size() << " files!" << std::endl;
+    std::cout << "PARSE RATE: " << ((double)128 * vector_of_file_data.size()) / ((double)parse_duration/1000) << "MB/s\n" << std::endl;
+
+    return vector_of_file_data.size();
+}
+
 int main(int argc, char* argv[]) {
     if(argc < 2) {
         perror("Provide path to block files as an arg when running parser");
         exit(1);
     }
-
+    std::string name;
+    if(argc > 2)
+    {
+        name = argv[2];
+    }
     std::string path = argv[1];
-    std::ios_base::sync_with_stdio(false);
 
-    std::cout << "getting all file names!" << std::endl;
-    std::vector<std::string> file_names = get_all_file_names(path);
-    std::cout << "finished getting all file names!\n" << std::endl;
+    if(std::filesystem::is_directory(path))
+    {
+        std::string path = argv[1];
+        std::ios_base::sync_with_stdio(false);
 
-    std::cout << "now parsing" << std::endl;
-    auto start = std::chrono::high_resolution_clock::now();
+        std::cout << "getting all file names!" << std::endl;
+        std::vector<std::string> file_names = get_all_file_names(path);
+        std::cout << "finished getting all file names!\n" << std::endl;
 
-    uint16_t num_of_files_parsed = read_files_and_parse(path, file_names);
-    
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+        std::cout << "now parsing" << std::endl;
+        auto start = std::chrono::high_resolution_clock::now();
 
-    std::cout << "TOTAL TIME: " << duration << "ms" << std::endl;
-    std::cout << "TOTAL READ & PARSE RATE: " << ((double)128 * num_of_files_parsed) / ((double)duration/1000) << "MB/s" << std::endl;
+        uint16_t num_of_files_parsed = read_files_and_parse(path, file_names);
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+
+        std::cout << "TOTAL TIME: " << duration << "ms" << std::endl;
+        std::cout << "TOTAL READ & PARSE RATE: " << ((double)128 * num_of_files_parsed) / ((double)duration/1000) << "MB/s" << std::endl;
+    }
+    else
+    {
+        
+        std::ios_base::sync_with_stdio(false);
+
+        std::cout << "getting all file names!" << std::endl;
+        std::vector<std::string> file_names;
+        std::cout << "finished getting all file names!\n" << std::endl;
+
+        std::cout << "now parsing" << std::endl;
+        auto start = std::chrono::high_resolution_clock::now();
+
+        uint16_t num_of_files_parsed = read_file_and_parse(path, file_names, name);
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+
+        std::cout << "TOTAL TIME: " << duration << "ms" << std::endl;
+        std::cout << "TOTAL READ & PARSE RATE: " << ((double)128 * num_of_files_parsed) / ((double)duration/1000) << "MB/s" << std::endl;
+
+    }
 
     return 0;
 }
