@@ -8,3 +8,4 @@ test.csv
 example/dat/blk00001.dat
 example/dat/blk00002.dat
 parser-ui/imgui.ini
+result.json

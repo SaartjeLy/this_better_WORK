@@ -8,7 +8,9 @@
 #include "imgui_impl_opengl3.h"
 #include "L2DFileDialog.h"
 #include "stb_image.h"
+#include "imspinner.h"
 #include <iostream>
+#include <future>
 #include <stdio.h>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
@@ -58,7 +60,7 @@ int main(int, char**)
 #endif
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 140, "Block Chain Parser", NULL, NULL);
     if (window == NULL)
         return 1;
     glfwMakeContextCurrent(window);
@@ -68,12 +70,24 @@ int main(int, char**)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    //io.ConfigViewportsNoAutoMerge = true;
+    //io.ConfigViewportsNoTaskBarIcon = true;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
+
+    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -95,8 +109,11 @@ int main(int, char**)
     //IM_ASSERT(font != NULL);
 
     // Our state
-    bool show_demo_window = true;
+    bool show_demo_window = false;
     bool show_another_window = false;
+    bool parser_finished = true;
+    std::future<void> parser;
+
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Main loop
@@ -118,27 +135,11 @@ int main(int, char**)
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
 
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-            ImGui::Begin("test");                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-
-
         // Simple File Dialog example
+        ImGui::SetNextWindowSize(ImGui::GetMainViewport()->Size);
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->Pos);
         ImGui::Begin("Parser");
+
         static char* file_dialog_buffer = nullptr;
         static char path[500] = "";
 
@@ -155,8 +156,20 @@ int main(int, char**)
             FileDialog::ShowFileDialog(&FileDialog::file_dialog_open, file_dialog_buffer, sizeof(file_dialog_buffer), FileDialog::file_dialog_open_type);
         }
 
-        if(ImGui::Button("parse"))
-            ImGui::OpenPopup("Parse?");
+        if(parser_finished)
+        {            
+            if(ImGui::Button("parse"))
+            {
+                parser_finished = false;
+                ImGui::OpenPopup("Parse?");
+            }
+            
+        }
+        else
+        {
+            ImGui::Spinner("parsing", 10, 2, ImColor(100, 255, 0));
+        }
+        
 
         // Always center this window when appearing
         ImVec2 center = ImGui::GetMainViewport()->GetCenter();
@@ -173,12 +186,16 @@ int main(int, char**)
             {
                 std::string temp = file_dialog_buffer;
                 std::string fileName_string = fileName_buffer;
-                std::cout << temp.find(".dat") << "\n";
                 
                 std::string command = "../parser " + temp + " " + fileName_string;
-                system(command.c_str());
-                
-                ImGui::CloseCurrentPopup(); 
+
+                parser = std::async(std::launch::async, [command, &parser_finished](){
+                    system(command.c_str());
+                    parser_finished = true;
+                });                
+
+                ImGui::CloseCurrentPopup();
+                 
             }
             ImGui::SetItemDefaultFocus();
             ImGui::SameLine();
@@ -186,8 +203,8 @@ int main(int, char**)
             ImGui::EndPopup();
         }
 
+        ImGui::Text("Width: %f, Height: %f", ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
         ImGui::End();
-
 
         // Rendering
         ImGui::Render();
@@ -197,6 +214,17 @@ int main(int, char**)
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    	
+        // Update and Render additional Platform Windows
+        // (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
+        //  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
 
         glfwSwapBuffers(window);
     }
@@ -211,3 +239,4 @@ int main(int, char**)
 
     return 0;
 }
+
