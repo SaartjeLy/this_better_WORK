@@ -223,7 +223,7 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
 
     auto read_start = std::chrono::high_resolution_clock::now();
 
-    get_file_data(2, 3, path, file_names, &vector_of_file_data);
+    get_file_data(0, file_names.size(), path, file_names, &vector_of_file_data);
 
     auto read_end = std::chrono::high_resolution_clock::now();
     auto read_duration = std::chrono::duration_cast<std::chrono::milliseconds>(read_end-read_start).count();
@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "getting all file names!" << std::endl;
         std::vector<std::string> file_names = get_all_file_names(path);
-        std::cout << "finished getting all file names!\n" << std::endl;
+        std::cout << "finished getting all file names!" << std::endl;
 
         std::cout << "now parsing" << std::endl;
         auto start = std::chrono::high_resolution_clock::now();

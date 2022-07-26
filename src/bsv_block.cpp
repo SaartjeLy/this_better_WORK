@@ -57,14 +57,7 @@ BSV_BLOCK::BSV_BLOCK(uint32_t* ptr, std::string* data) : file_data(data), ptr(pt
     bits = read_bytes(4);
     nonce = read_bytes(4);
     block_hash = get_blockHash(version, previous_block_hash, merkle_root, time, bits, nonce);
-
-    std::cout << "" << version << "" << previous_block_hash << "" << merkle_root << "" << time << "" << bits << "" << nonce << "\n"; 
-
-    // std::cout << "\nVersion: " << reverse_pairs(version) << "\nPrevious_block_hash: " << reverse_pairs(previous_block_hash) << "\nMerkle Root: " << reverse_pairs(merkle_root) << "\nTime: " << reverse_pairs(time) << "\nBits: " << reverse_pairs(bits) << "\nNonce: " << reverse_pairs(nonce) << "\n"; 
-   
     
-
-
     block_size = std::to_string(hex_to_int(block_size));
     time = std::to_string(hex_to_int(time));
     bits = std::to_string(hex_to_int(bits));
