@@ -38,6 +38,31 @@ std::string BSV_BLOCK::get_blockHash(std::string version, std::string previous_b
     return reverse_pairs(result);
 }
 
+std::string BSV_BLOCK::get_TXID(BSV_TRANSACTION transaction)
+{
+    using namespace CryptoPP;
+    SHA256 hash;
+    HexDecoder decoder;
+    std::string result;
+    std::string decoded;
+    std::string to_hash;
+
+    decoder.Attach( new StringSink( decoded ) );
+    decoder.Put( (byte*)to_hash.data(), to_hash.size() );
+    decoder.MessageEnd();
+    std::string out;
+
+    StringSource foo(decoded, true, 
+        new HashFilter(hash,new StringSink(out))
+    );
+    StringSource poo(out, true, 
+        new HashFilter(hash,new HexEncoder(new StringSink(result),true))
+    );
+
+    return reverse_pairs(result);
+
+}
+
 BSV_BLOCK::BSV_BLOCK(uint32_t* ptr, std::string* data) : file_data(data), ptr(ptr) {
      
 
@@ -85,7 +110,7 @@ BSV_BLOCK::BSV_BLOCK(uint32_t* ptr, std::string* data) : file_data(data), ptr(pt
 
             transaction.inputs.push_back(input);
         }
-
+        
         transaction.number_of_outputs = read_variable_bytes();
         transaction.outputs.reserve(transaction.number_of_outputs);
         for( int y=0; y<transaction.number_of_outputs; y++) {

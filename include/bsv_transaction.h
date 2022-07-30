@@ -12,6 +12,7 @@ class BSV_TRANSACTION {
         BSV_TRANSACTION();
         ~BSV_TRANSACTION();
 
+        std::string TXID;
         std::string version;
         unsigned long long number_of_inputs;
         std::vector<BSV_INPUT> inputs;
