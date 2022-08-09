@@ -139,37 +139,63 @@ std::vector<std::string> get_all_file_names(std::string path) {
  * @param file_names 
  * @param vector_of_file_data 
  */
-void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data, std::string name = "bitcoinsv.csv") {
+void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<std::string*> vector_of_file_data, std::string name = "bitcoinsv.csv", std::string tr_name = "transactions.csv") {
     tf::Taskflow taskflow;
     tf::Executor executor;
     std::mutex mutex;
 
-    CSV_WRITER csv_writer(name, false); // create csv file and open file stream)
+    CSV_WRITER csv_writer(name, false, false); // create csv file and open file stream)
+    CSV_WRITER transaction_writer(tr_name, false, true);
     // CSV_WRITER csv_writer("bitcoinsv.csv", true); // create csv file and open file stream)
 
     uint64_t max_count = 0;
 
-    tf::Task D = taskflow.for_each(vector_of_file_data.begin(), vector_of_file_data.end(), [&] (std::string* file_data) {
+    for(std::string* x : vector_of_file_data)
+    {
         uint32_t ptr = 0;
         uint32_t block_count = 0;
 
-        while ((*file_data)[ptr] != '\0') {
-            BSV_BLOCK block(&ptr, file_data);
-
-            mutex.lock();
+        while ((*x)[ptr] != '\0') {
+            BSV_BLOCK block(&ptr, x);
+            
             csv_writer.write_header(block_count, block); // write block to csv file
+            for(auto& x : block.transactions)
+            {
+                transaction_writer.write_transaction(x);
+            }
             // csv_writer.write_twetch_count(max_count + block_count, &block); // write twetch count to csv file
             block_count++;
-            mutex.unlock();
         }
 
-        mutex.lock();
         max_count += block_count;
-        mutex.unlock();
-    });
+    }
 
-    executor.run(taskflow).wait();
-    taskflow.clear();
+
+    // tf::Task D = taskflow.for_each(vector_of_file_data.begin(), vector_of_file_data.end(), [&] (std::string* file_data) {
+    //     uint32_t ptr = 0;
+    //     uint32_t block_count = 0;
+
+    //     while ((*file_data)[ptr] != '\0') {
+    //         BSV_BLOCK block(&ptr, file_data);
+            
+    //         mutex.lock();
+    //         csv_writer.write_header(block_count, block); // write block to csv file
+    //         for(auto& x : block.transactions)
+    //         {
+    //             transaction_writer.write_transaction(x);
+    //         }
+    //         // csv_writer.write_twetch_count(max_count + block_count, &block); // write twetch count to csv file
+    //         block_count++;
+    //         mutex.unlock();
+    //     }
+
+        // mutex.lock();
+        // max_count += block_count;
+        // mutex.unlock();
+    // });
+
+    // executor.run(taskflow).wait();
+    // taskflow.clear();
 
     csv_writer.close();
 

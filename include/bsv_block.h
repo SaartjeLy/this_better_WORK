@@ -18,7 +18,7 @@ class BSV_BLOCK {
         std::string* file_data;
         std::string reverse_pairs(std::string const & src);
         std::string get_blockHash(std::string version, std::string previous_block_hash, std::string merkle_root, std::string time, std::string bits, std::string nonce);
-        std::string get_TXID(BSV_TRANSACTION transaction);
+        std::string get_TXID(std::string raw_transaction); //! Incomplete
 
     public:
         BSV_BLOCK(uint32_t* ptr, std::string* data);
@@ -26,7 +26,7 @@ class BSV_BLOCK {
 
         unsigned long long hex_to_int(std::string hex_string);
         std::string read_bytes(int bytes);
-        unsigned long long read_variable_bytes();
+        unsigned long long read_variable_bytes(unsigned long long& num_bytes);
 
         std::string magic_number;
         std::string block_size;

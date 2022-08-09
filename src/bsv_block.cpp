@@ -38,14 +38,14 @@ std::string BSV_BLOCK::get_blockHash(std::string version, std::string previous_b
     return reverse_pairs(result);
 }
 
-std::string BSV_BLOCK::get_TXID(BSV_TRANSACTION transaction)
+std::string BSV_BLOCK::get_TXID(std::string raw_transaction)
 {
     using namespace CryptoPP;
     SHA256 hash;
     HexDecoder decoder;
     std::string result;
     std::string decoded;
-    std::string to_hash;
+    std::string to_hash = reverse_pairs(raw_transaction);
 
     decoder.Attach( new StringSink( decoded ) );
     decoder.Put( (byte*)to_hash.data(), to_hash.size() );
@@ -90,44 +90,61 @@ BSV_BLOCK::BSV_BLOCK(uint32_t* ptr, std::string* data) : file_data(data), ptr(pt
 
 
     // transactions
-    number_of_transactions = read_variable_bytes();
+    unsigned long long num_bytes = 0;
+    number_of_transactions = read_variable_bytes(num_bytes);
     transactions.reserve(number_of_transactions);
     for (int i=0; i<number_of_transactions; i++) {
+        num_bytes = 0;
         BSV_TRANSACTION transaction;
 
         transaction.version = read_bytes(4);
+        num_bytes += 4;
 
-        transaction.number_of_inputs = read_variable_bytes();
+        transaction.number_of_inputs = read_variable_bytes(num_bytes);
         transaction.inputs.reserve(transaction.number_of_inputs);
+
         for( int x=0; x<transaction.number_of_inputs; x++) {
+            
             BSV_INPUT input;
 
             input.pre_transaction_hash = read_bytes(32);
             input.pre_transaction_out_index = read_bytes(4);
-            input.script_length = read_variable_bytes();
+            input.script_length = read_variable_bytes(num_bytes);
             input.script = read_bytes(input.script_length);
             input.sequence = read_bytes(4);
 
             transaction.inputs.push_back(input);
+            num_bytes += 40 + input.script_length;
         }
         
-        transaction.number_of_outputs = read_variable_bytes();
+        transaction.number_of_outputs = read_variable_bytes(num_bytes);
         transaction.outputs.reserve(transaction.number_of_outputs);
+
+
         for( int y=0; y<transaction.number_of_outputs; y++) {
             BSV_OUTPUT output;
 
             output.value = read_bytes(8);
-            output.script_length = read_variable_bytes();
+            output.script_length = read_variable_bytes(num_bytes);
             output.script = read_bytes(output.script_length);
 
             transaction.outputs.push_back(output);
+
+            num_bytes += 8 + output.script_length;
         }
     
         transaction.lock_time = read_bytes(4);
+        num_bytes += 4;
+
+        *ptr -= num_bytes*2;
+
+        std::string raw_transaction = read_bytes(num_bytes);
+        transaction.TXID = get_TXID(raw_transaction);
 
         transactions.push_back(transaction);
     }
-}
+    
+}   
 
 /**
  * @brief takes a hex string and converts it to its equivalent unsigned long long value
@@ -166,22 +183,26 @@ std::string BSV_BLOCK::read_bytes(int bytes) {
  * 
  * @return unsigned long long
  */
-unsigned long long BSV_BLOCK::read_variable_bytes() {
+unsigned long long BSV_BLOCK::read_variable_bytes(unsigned long long &num_bytes) {
     std::string hex_string = read_bytes(1);
+    num_bytes++;
     unsigned long long val = hex_to_int(hex_string);
 
     if (val == 253) {
         std::string two_byte_hex_string = read_bytes(2);
+        num_bytes += 2;
         unsigned long long two_byte_val = hex_to_int(two_byte_hex_string);
         return two_byte_val;
     }
     else if (val == 254) {
         std::string four_byte_hex_string = read_bytes(4);
+        num_bytes += 4;
         unsigned long long four_byte_val = hex_to_int(four_byte_hex_string);
         return four_byte_val;
     }
     else if (val == 255) {
         std::string eight_byte_hex_string = read_bytes(8);
+        num_bytes += 8;
         unsigned long long eight_byte_val = hex_to_int(eight_byte_hex_string);
         return eight_byte_val;
     }

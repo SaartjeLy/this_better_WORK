@@ -152,55 +152,56 @@ int main(int, char**)
             FileDialog::file_dialog_open_type = FileDialog::FileDialogType::OpenFile;
         }
 
-        if (FileDialog::file_dialog_open) {
-            FileDialog::ShowFileDialog(&FileDialog::file_dialog_open, file_dialog_buffer, sizeof(file_dialog_buffer), FileDialog::file_dialog_open_type);
-        }
+        { //*ImGui File Explorer
+            if (FileDialog::file_dialog_open) {
+                FileDialog::ShowFileDialog(&FileDialog::file_dialog_open, file_dialog_buffer, sizeof(file_dialog_buffer), FileDialog::file_dialog_open_type);
+            }
 
-        if(parser_finished)
-        {            
-            if(ImGui::Button("parse"))
+            if(parser_finished)
+            {            
+                if(ImGui::Button("parse"))
+                {
+                    parser_finished = false;
+                    ImGui::OpenPopup("Parse?");
+                }
+                
+            }
+            else
             {
-                parser_finished = false;
-                ImGui::OpenPopup("Parse?");
+                ImGui::Spinner("parsing", 10, 2, ImColor(100, 255, 0));
             }
             
-        }
-        else
-        {
-            ImGui::Spinner("parsing", 10, 2, ImColor(100, 255, 0));
-        }
-        
+            // Always center this window when appearing
+            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
-        // Always center this window when appearing
-        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-        if (ImGui::BeginPopupModal("Parse?", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-            static char fileName_buffer[500] = "";
-            ImGui::TextUnformatted("Output file name: ");
-            ImGui::SameLine();
-            ImGui::InputText("fileName", fileName_buffer, 500);
-
-            if (ImGui::Button("OK", ImVec2(120, 0))) 
+            if (ImGui::BeginPopupModal("Parse?", NULL, ImGuiWindowFlags_AlwaysAutoResize))
             {
-                std::string temp = file_dialog_buffer;
-                std::string fileName_string = fileName_buffer;
-                
-                std::string command = "../parser " + temp + " " + fileName_string;
+                static char fileName_buffer[500] = "";
+                ImGui::TextUnformatted("Output file name: ");
+                ImGui::SameLine();
+                ImGui::InputText("fileName", fileName_buffer, 500);
 
-                parser = std::async(std::launch::async, [command, &parser_finished](){
-                    system(command.c_str());
-                    parser_finished = true;
-                });                
+                if (ImGui::Button("OK", ImVec2(120, 0))) 
+                {
+                    std::string temp = file_dialog_buffer;
+                    std::string fileName_string = fileName_buffer;
+                    
+                    std::string command = "../parser " + temp + " " + fileName_string;
 
-                ImGui::CloseCurrentPopup();
-                 
+                    parser = std::async(std::launch::async, [command, &parser_finished](){
+                        system(command.c_str());
+                        parser_finished = true;
+                    });                
+
+                    ImGui::CloseCurrentPopup();
+                    
+                }
+                ImGui::SetItemDefaultFocus();
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+                ImGui::EndPopup();
             }
-            ImGui::SetItemDefaultFocus();
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-            ImGui::EndPopup();
         }
 
         ImGui::Text("Width: %f, Height: %f", ImGui::GetWindowWidth(), ImGui::GetWindowHeight());

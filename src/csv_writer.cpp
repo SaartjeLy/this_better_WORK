@@ -2,20 +2,27 @@
 #include <iostream>
 #include <filesystem>
 
-CSV_WRITER::CSV_WRITER(std::string filename, bool twetches) : filename(filename) {
+CSV_WRITER::CSV_WRITER(std::string filename, bool twetches, bool transaction) : filename(filename) {
     // twetches is for whether the CSV file is meant for twetches or not
     // this definitely needs to be refactored, but it's my last day @ 21e8 and i'm rushing this feature lol
 
-    if(std::filesystem::exists("./"+filename)) {
+    if(std::filesystem::exists("./"+filename)){
         csv_file.open(filename, std::ios_base::app);
+        return;
+        }
+    csv_file.open(filename, std::ios_base::app);
+    
+    if(transaction)
+    {
+        write_line("transaction_version,num_inputs,num_outputs,lock_time,TXID");
+    }
+    else if(std::filesystem::exists("./"+filename)) {
         write_line("block_number,block_hash,magic_number,block_size,version,previous_block_hash,merkle_root,time,difficulty,nonce,number_of_transactions"); 
     }
     else if (twetches == 0) {
-        csv_file.open(filename, std::ios_base::app);
         write_line("block_number,magic_number,block_size,version,previous_block_hash,merkle_root,time,bits,nonce");    
     }
     else {
-        csv_file.open(filename, std::ios_base::app);
         write_line("block_number,time,number_of_twetches");    
     }
 }
@@ -51,6 +58,17 @@ void CSV_WRITER::write_header(uint32_t block_number, BSV_BLOCK block) {
     line += block.bits + ",";
     line += block.nonce + ",";
     line += std::to_string(block.number_of_transactions);
+
+    write_line(line);
+}
+void CSV_WRITER::write_transaction(BSV_TRANSACTION transaction)
+{
+    std::string line;
+    line += transaction.version + ",";
+    line += std::to_string(transaction.number_of_inputs) + ",";
+    line += std::to_string(transaction.number_of_outputs) + ",";
+    line += transaction.lock_time + ",";
+    line += transaction.TXID;
 
     write_line(line);
 }

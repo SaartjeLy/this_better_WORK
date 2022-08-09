@@ -15,8 +15,9 @@ class CSV_WRITER {
         void write_line(std::string line);
     public:
         std::mutex mutex;
-        CSV_WRITER(std::string filename, bool twetches);
+        CSV_WRITER(std::string filename, bool twetches, bool transaction = false);
         void write_header(uint32_t block_number, BSV_BLOCK block);
+        void write_transaction(BSV_TRANSACTION transaction);
         void write_twetch_count(uint32_t block_number, BSV_BLOCK* block);
         void close();
 };
