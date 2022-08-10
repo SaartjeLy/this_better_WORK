@@ -9,9 +9,12 @@
 #include "L2DFileDialog.h"
 #include "stb_image.h"
 #include "imspinner.h"
+#include "parser.h"
 #include <iostream>
 #include <future>
 #include <stdio.h>
+#include <chrono>
+#include <ctime>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
@@ -28,6 +31,15 @@ static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
+
+static char current_time[100];
+static char* get_formated_time() {
+    time_t t = time(NULL);
+    struct tm * p = localtime(&t);
+
+    strftime(current_time, 1000, "%Y-%m-%d %H:%M:%S", p);
+    return current_time;
+};
 
 int main(int, char**)
 {
@@ -108,6 +120,131 @@ int main(int, char**)
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != NULL);
 
+    struct ExampleAppLog
+    {
+        ImGuiTextBuffer     Buf;
+        ImGuiTextFilter     Filter;
+        ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
+        bool                AutoScroll;  // Keep scrolling if already at the bottom.
+
+        ExampleAppLog()
+        {
+            AutoScroll = true;
+            Clear();
+        }
+
+        void    Clear()
+        {
+            Buf.clear();
+            LineOffsets.clear();
+            LineOffsets.push_back(0);
+        }
+
+        void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
+        {
+            int old_size = Buf.size();
+            va_list args;
+            va_start(args, fmt);
+            Buf.appendfv(fmt, args);
+            va_end(args);
+            for (int new_size = Buf.size(); old_size < new_size; old_size++)
+                if (Buf[old_size] == '\n')
+                    LineOffsets.push_back(old_size + 1);
+        }
+
+        void    Draw(const char* title, bool* p_open = NULL)
+        {
+            
+            if (!ImGui::BeginChild(title, ImVec2(0, 650)))
+            {
+                ImGui::EndChild();
+                return;
+            }
+
+            // Options menu
+            if (ImGui::BeginPopup("Options"))
+            {
+                ImGui::Checkbox("Auto-scroll", &AutoScroll);
+                ImGui::EndPopup();
+            }
+
+            // Main window
+            if (ImGui::Button("Options"))
+                ImGui::OpenPopup("Options");
+            ImGui::SameLine();
+            bool clear = ImGui::Button("Clear");
+            ImGui::SameLine();
+            bool copy = ImGui::Button("Copy");
+            ImGui::SameLine();
+            Filter.Draw("Filter", -100.0f);
+
+            ImGui::Separator();
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(40, 40, 40, 255));
+            ImGui::BeginChild("scrolling", ImVec2(0, 600), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+            if (clear)
+                Clear();
+            if (copy)
+                ImGui::LogToClipboard();
+
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+            const char* buf = Buf.begin();
+            const char* buf_end = Buf.end();
+            if (Filter.IsActive())
+            {
+                // In this example we don't use the clipper when Filter is enabled.
+                // This is because we don't have a random access on the result on our filter.
+                // A real application processing logs with ten of thousands of entries may want to store the result of
+                // search/filter.. especially if the filtering function is not trivial (e.g. reg-exp).
+                for (int line_no = 0; line_no < LineOffsets.Size; line_no++)
+                {
+                    const char* line_start = buf + LineOffsets[line_no];
+                    const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+                    if (Filter.PassFilter(line_start, line_end))
+                        ImGui::TextUnformatted(line_start, line_end);
+                }
+            }
+            else
+            {
+                // The simplest and easy way to display the entire buffer:
+                //   ImGui::TextUnformatted(buf_begin, buf_end);
+                // And it'll just work. TextUnformatted() has specialization for large blob of text and will fast-forward
+                // to skip non-visible lines. Here we instead demonstrate using the clipper to only process lines that are
+                // within the visible area.
+                // If you have tens of thousands of items and their processing cost is non-negligible, coarse clipping them
+                // on your side is recommended. Using ImGuiListClipper requires
+                // - A) random access into your data
+                // - B) items all being the  same height,
+                // both of which we can handle since we an array pointing to the beginning of each line of text.
+                // When using the filter (in the block of code above) we don't have random access into the data to display
+                // anymore, which is why we don't use the clipper. Storing or skimming through the search result would make
+                // it possible (and would be recommended if you want to search through tens of thousands of entries).
+                ImGuiListClipper clipper;
+                clipper.Begin(LineOffsets.Size);
+                while (clipper.Step())
+                {
+                    for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+                    {
+                        const char* line_start = buf + LineOffsets[line_no];
+                        const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+                        ImGui::TextUnformatted(line_start, line_end);
+                    }
+                }
+                clipper.End();
+            }
+            ImGui::PopStyleVar();
+
+            if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
+            ImGui::EndChild();
+            
+        }
+    };
+
+    static ExampleAppLog my_log;
     // Our state
     bool show_demo_window = false;
     bool show_another_window = false;
@@ -115,6 +252,9 @@ int main(int, char**)
     std::future<void> parser;
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+    bool parser_call_back = false;
+    
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -159,6 +299,7 @@ int main(int, char**)
 
             if(parser_finished)
             {            
+                
                 if(ImGui::Button("parse"))
                 {
                     parser_finished = false;
@@ -169,6 +310,13 @@ int main(int, char**)
             else
             {
                 ImGui::Spinner("parsing", 10, 2, ImColor(100, 255, 0));
+            }
+
+            if(parser_call_back)
+            {
+                parser_call_back = false;
+                auto time_n = time(0);
+                my_log.AddLog("[%s] [info] Parser Finished\n", get_formated_time());
             }
             
             // Always center this window when appearing
@@ -189,20 +337,41 @@ int main(int, char**)
                     
                     std::string command = "../parser " + temp + " " + fileName_string;
 
-                    parser = std::async(std::launch::async, [command, &parser_finished](){
+                    parser = std::async(std::launch::async, [command, &parser_finished, &parser_call_back](){
                         system(command.c_str());
                         parser_finished = true;
-                    });                
+                        parser_call_back = true;
+                    });
+
+                    auto time_n = time(0);
+
+                    my_log.AddLog("[%s] [info] Parsing %s\n", get_formated_time(),path);
+                    my_log.AddLog("[%s] [info] Block Header Output: %s\n", get_formated_time(), fileName_buffer);
+                    my_log.AddLog("[%s] [info] Transaction Output: transactions.csv\n", get_formated_time());   
 
                     ImGui::CloseCurrentPopup();
                     
                 }
                 ImGui::SetItemDefaultFocus();
                 ImGui::SameLine();
-                if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) { 
+                    parser_finished = true;
+                    ImGui::CloseCurrentPopup(); 
+                }
                 ImGui::EndPopup();
             }
         }
+
+        if(ImGui::Button("Open Demo Window"))
+        {
+            show_demo_window = true;
+        }
+
+        ImGui::NewLine();
+
+        
+
+        my_log.Draw("Title");
 
         ImGui::Text("Width: %f, Height: %f", ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
         ImGui::End();

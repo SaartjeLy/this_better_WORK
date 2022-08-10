@@ -16,16 +16,20 @@ CXX = g++
 
 EXE = example_glfw_opengl3
 IMGUI_DIR = ../external/imgui
+PARSER_DIR = ..
 SOURCES = main.cpp
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+# Source for parser
+SOURCES += $(PARSER_DIR)/parser.cpp $(PARSER_DIR)/json_writer.cpp $(PARSER_DIR)/csv_writer.cpp $(PARSER_DIR)/bsv_transaction.cpp $(PARSER_DIR)/bsv_output.cpp $(PARSER_DIR)/bsv_input.cpp $(PARSER_DIR)/bsv_block.cpp
 OBJS = $(addsuffix .o, $(basename $(notdir $(SOURCES))))
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -std=c++17 -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
-CXXFLAGS += -g -Wall -Wformat -pthread
-LIBS =
+CXXFLAGS += -std=c++17 -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
+# Include flags 
+CXXFLAGS += -I$(PARSER_DIR)/include -I$(PARSER_DIR)/external -I$(PARSER_DIR)/src
+CXXFLAGS += -g -Wall -Wformat -pthread -lcryptopp
 
 ##---------------------------------------------------------------------
 ## OPENGL ES
@@ -77,6 +81,9 @@ endif
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(IMGUI_DIR)/backends/%.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.o:$(PARSER_DIR)/src/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 all: $(EXE)
