@@ -72,7 +72,7 @@ int main(int, char**)
 #endif
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(800, 140, "Block Chain Parser", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 900, "Block Chain Parser", NULL, NULL);
     if (window == NULL)
         return 1;
     glfwMakeContextCurrent(window);
@@ -335,10 +335,14 @@ int main(int, char**)
                     std::string temp = file_dialog_buffer;
                     std::string fileName_string = fileName_buffer;
                     
-                    std::string command = "../parser " + temp + " " + fileName_string;
-
-                    parser = std::async(std::launch::async, [command, &parser_finished, &parser_call_back](){
-                        system(command.c_str());
+                    parser = std::async(std::launch::async, [temp, fileName_string, &parser_finished, &parser_call_back](){
+                        std::string path = temp;
+                        std::string header_file_name = fileName_string;
+                        if(header_file_name == "")
+                        {
+                            header_file_name = "Headers.csv";
+                        }
+                        run(temp, fileName_string);
                         parser_finished = true;
                         parser_call_back = true;
                     });

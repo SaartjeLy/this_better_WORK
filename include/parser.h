@@ -79,3 +79,11 @@ uint16_t read_files_and_parse(std::string path, std::vector<std::string> file_na
  * @param block_numbers string vector of the .dat filenames
  */
 uint16_t read_file_and_parse(std::string path, std::vector<std::string> file_names, std::string name);
+
+/**
+ * @brief Runs the parser on the given path for multiple .dat files or 1 .dat file
+ * 
+ * @param path absolute path to the file or directory holding .dat files
+ * @param name Name for block header file data to be saved in
+ */
+int run(std::string path, std::string name = "blockHeader.csv");

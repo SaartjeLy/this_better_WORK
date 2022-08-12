@@ -2,28 +2,41 @@
 #include <iostream>
 #include <filesystem>
 
-CSV_WRITER::CSV_WRITER(std::string filename, bool twetches, bool transaction) : filename(filename) {
+
+/**
+ * @brief Construct a new csv writer::csv writer object
+ * 
+ * @param filename indicates file being written to
+ * @param twetches 
+ * @param flag if 1 transaction, if 2 input, if 3 output if 0 none
+ */
+CSV_WRITER::CSV_WRITER(std::string filename, bool twetches, CSV_WRITE_FLAG flag) : filename(filename) {
     // twetches is for whether the CSV file is meant for twetches or not
     // this definitely needs to be refactored, but it's my last day @ 21e8 and i'm rushing this feature lol
 
     if(std::filesystem::exists("./"+filename)){
         csv_file.open(filename, std::ios_base::app);
         return;
-        }
+    }
     csv_file.open(filename, std::ios_base::app);
     
-    if(transaction)
-    {
-        write_line("transaction_version,num_inputs,num_outputs,lock_time,TXID");
-    }
-    else if(std::filesystem::exists("./"+filename)) {
-        write_line("block_number,block_hash,magic_number,block_size,version,previous_block_hash,merkle_root,time,difficulty,nonce,number_of_transactions"); 
-    }
-    else if (twetches == 0) {
-        write_line("block_number,magic_number,block_size,version,previous_block_hash,merkle_root,time,bits,nonce");    
-    }
-    else {
-        write_line("block_number,time,number_of_twetches");    
+    switch(flag){
+        case TRANSACTION : write_line("transaction_version,num_inputs,num_outputs,lock_time,TXID"); break;
+        case INPUT       : write_line("pre_transaction_hash, pre_transaction_out_index, script_length, script, sequence"); break;
+        case OUTPUT      : write_line("value, script_length, script"); break;
+        default : 
+            if(std::filesystem::exists("./"+filename)) {
+                write_line("block_number,block_hash,magic_number,block_size,version,previous_block_hash,merkle_root,time,difficulty,nonce,number_of_transactions"); 
+            }
+            else if (twetches == 0) {
+                write_line("block_number,magic_number,block_size,version,previous_block_hash,merkle_root,time,bits,nonce");    
+            }
+            else {
+                write_line("block_number,time,number_of_twetches");    
+            }
+            break;
+        
+
     }
 }
 
@@ -61,6 +74,12 @@ void CSV_WRITER::write_header(uint32_t block_number, BSV_BLOCK block) {
 
     write_line(line);
 }
+
+/**
+ * @brief writes a transaction to csv file in a single line
+ * 
+ * @param transaction 
+ */
 void CSV_WRITER::write_transaction(BSV_TRANSACTION transaction)
 {
     std::string line;
@@ -69,6 +88,28 @@ void CSV_WRITER::write_transaction(BSV_TRANSACTION transaction)
     line += std::to_string(transaction.number_of_outputs) + ",";
     line += transaction.lock_time + ",";
     line += transaction.TXID;
+
+    write_line(line);
+}
+
+void CSV_WRITER::write_input(BSV_INPUT input)
+{
+    std::string line;
+    line += input.pre_transaction_hash + ",";
+    line += input.pre_transaction_out_index + ",";
+    line += std::to_string(input.script_length) + ",";
+    line += input.script + ",";
+    line += input.sequence;
+
+    write_line(line);
+}
+
+void CSV_WRITER::write_output(BSV_OUTPUT output)
+{
+    std::string line;
+    line += std::to_string(BSV_BLOCK::hex_to_int(output.value)) + ",";
+    line += std::to_string(output.script_length) + ",";
+    line += output.script;
 
     write_line(line);
 }

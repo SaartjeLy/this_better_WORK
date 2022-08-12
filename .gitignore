@@ -24,3 +24,4 @@ example/dat/*.dat
 # parser-ui/blk00003.csv
 parser-ui/*.csv
 parser-ui/*.o
+example/parserData.tar.gz

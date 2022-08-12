@@ -24,7 +24,7 @@ class BSV_BLOCK {
         BSV_BLOCK(uint32_t* ptr, std::string* data);
         ~BSV_BLOCK();
 
-        unsigned long long hex_to_int(std::string hex_string);
+        static unsigned long long hex_to_int(std::string hex_string);
         std::string read_bytes(int bytes);
         unsigned long long read_variable_bytes(unsigned long long& num_bytes);
 

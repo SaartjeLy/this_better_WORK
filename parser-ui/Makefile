@@ -14,7 +14,7 @@
 CXX = g++
 #CXX = clang++
 
-EXE = example_glfw_opengl3
+EXE = parser
 IMGUI_DIR = ../external/imgui
 PARSER_DIR = ..
 SOURCES = main.cpp

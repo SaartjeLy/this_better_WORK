@@ -144,8 +144,11 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
     tf::Executor executor;
     std::mutex mutex;
 
-    CSV_WRITER csv_writer(name, false, false); // create csv file and open file stream)
-    CSV_WRITER transaction_writer(tr_name, false, true);
+
+    CSV_WRITER csv_writer(name, false, NONE); // create csv file and open file stream)
+    CSV_WRITER transaction_writer(tr_name, false, TRANSACTION);
+    CSV_WRITER input_writer("Inputs.csv", false, INPUT);
+    CSV_WRITER output_writer("Outputs.csv", false, OUTPUT);
     // CSV_WRITER csv_writer("bitcoinsv.csv", true); // create csv file and open file stream)
 
     uint64_t max_count = 0;
@@ -162,6 +165,14 @@ void parse_and_export_to_csv(std::vector<std::string> file_names, std::vector<st
             for(auto& x : block.transactions)
             {
                 transaction_writer.write_transaction(x);
+                for(auto& y : x.inputs)
+                {
+                    input_writer.write_input(y);
+                }
+                for(auto& y : x.outputs)
+                {
+                    output_writer.write_output(y);
+                }
             }
             // csv_writer.write_twetch_count(max_count + block_count, &block); // write twetch count to csv file
             block_count++;
@@ -300,21 +311,10 @@ uint16_t read_file_and_parse(std::string path, std::vector<std::string> file_nam
     return vector_of_file_data.size();
 }
 
-int run(int argc, char* argv[]) {
-    if(argc < 2) {
-        perror("Provide path to block files as an arg when running parser");
-        exit(1);
-    }
-    std::string name;
-    if(argc > 2)
-    {
-        name = argv[2];
-    }
-    std::string path = argv[1];
+int run(std::string path, std::string name = "blockHeader.csv") {
 
-    if(std::filesystem::is_directory(path))21e80
+    if(std::filesystem::is_directory(path))
     {
-        std::string path = argv[1];
         std::ios_base::sync_with_stdio(false);
 
         std::cout << "getting all file names!" << std::endl;

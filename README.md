@@ -11,14 +11,40 @@ can currently read the first 500 blk files (blk00000.dat - blk00499.dat) into me
 at this current parse rate, it should take roughly 278000 / 1520.37 = __~182s__ to read the entire blockchain into memory, and __~241s__ to parse the blockchain in memory.    
 _NOTE: the 21e8 supermicro has ~192GB memory, so parsing the entire blockchain still needs to be done using batched processing!_    
 
+
+# Before running
+
+```bash
+sudo apt-get update
+sudo apt-get install libcrypto++-dev libcrypto++-doc libcrypto++-utils
+sudo apt-get install libglfw3
+sudo apt-get install libglfw3-dev
+```
+
 # Running
 
 ```bash
 git clone --recurse-submodules https://github.com/21e8-ltd/21e8-parser
-cd 21e8-parser
+cd 21e8-parser/parser-ui
 make -j
-./parser <location of dat files>
+./parser
 ```
+If you Need data to parse 
+```bash
+scp peter@10.147.20.89:~/Documents/parserData.tar.gz ~/Downloads
+tar -xzvf ~/Downloads/parserData.tar.gz
+```
+
+"dat" file with blk.dat files should be in downloads folder move to wherever is needed
+
+
+1. Browse button for choosing the .dat file to pass 
+2. Once file chosen click parse button
+3. optionally choose specific file name default "Headers.csv"
+4. file should parse within a few seconds if it takes longer something is wrong with the .dat file choose another
+5. data automatically gets appended to csv files generated
+6. 4 files generated "Inputs.csv" "Outputs.csv" "transactions.csv" "Headers.csv"
+7. block header transactions, inputs and outputs are all corresponding to each other in other words the first block header corresponds to the next few transactions inputs and outputs. 
 
 # parser details
 
