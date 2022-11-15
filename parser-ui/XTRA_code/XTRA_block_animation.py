@@ -21,6 +21,8 @@ num_of_transactions = headers_df['number_of_transactions']
 time = headers_df['time']
 difficulty = headers_df['difficulty']
 
+last_block = max(block_num)
+
 
 frame0 = None
 frames = []
