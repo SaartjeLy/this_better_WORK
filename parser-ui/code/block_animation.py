@@ -12,6 +12,7 @@ import datetime
 
 headers_df = pd.read_csv("5/Headers.csv")
 transaction_df = pd.read_csv('5/transactions.csv')
+print(transaction_df['TXID'][0])
 
 
 block_num = headers_df['block_number']

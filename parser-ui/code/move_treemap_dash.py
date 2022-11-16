@@ -16,23 +16,38 @@ from dash.dependencies import Input, Output
 
 from datetime import datetime as dt
 from datetime import date
+from dash import dcc
 
 app = dash.Dash(__name__)
 
 headers_df = pd.read_csv("5/Headers.csv")
 block_num = headers_df['block_number']
-last_block = max(block_num)
 num_of_transactions = headers_df['number_of_transactions']
 difficulty = headers_df['difficulty']
 time = headers_df['time']
 
-# ------------------------------------------------------------------------
+fee_df = pd.read_csv('fee_data_time.csv') #, index_col=0, parse_dates=True
+fee = fee_df['fee']
+block_num = fee_df['block_num']
+tx_num = fee_df['tx_num']
+last_block = max(block_num)
+
+non_zero_txs = block_num.value_counts()
+fee_dict = {}
+for i in range(len(fee_df)):
+    if block_num[i] in fee_dict:
+        fee_dict[block_num[i]] += [(tx_num[i], fee[i])] # add another tuple to the list of tx num, fee
+    
+    else: #if the block num not in dict
+        fee_dict[block_num[i]] = [(tx_num[i], fee[i])]
+
+# ------------------------------------------------------------------------ the tx weighting is in terms of fee at the moment, not with difficulty :)
 
 
 app.layout = html.Div([
     html.Div([
                 
-        dcc.DatePickerRange(
+        dcc.DatePickerRange(  # maybe put a note of what dates are available on screen?
             id='my-date-picker-range',
             day_size = 30,
             min_date_allowed=dt(2009, 1, 3), #Make a max one when we get all the data (max frequently updates with the most recent date data we get
@@ -44,7 +59,7 @@ app.layout = html.Div([
             
             persistence=True,
             persisted_props=['start_date', 'end_date'],
-            persistence_type='local', #xan close tab and it'll remember the input
+            persistence_type='local', #can close tab and it'll remember the input
             updatemode='singledate'
             
         ), 
@@ -98,23 +113,23 @@ app.layout = html.Div([
 )
 
     
-def update_graph(num1, num2): 
-
-    dff = headers_df.copy()
-            
+def update_graph(start_date, end_date, num1, num2): 
+    print(start_date, end_date)
     frame0 = None
     frames = []
 
 
-    difficulty_list = []
+    difficulty_list = [] #getting unique diff vals (of blocks)
     for i in range(len(difficulty)):
         if difficulty[i] not in difficulty_list:
             difficulty_list.append(difficulty[i])
     difficulty_list.sort()
 
     list_blocks = [] # sorting blocks in terms of difficulty
+    # for block in range(num1, num2+1): # do this if u don't care about diff order of blocks
+    #     list_blocks.append(block)
 
-    for diff in difficulty_list:
+    for diff in difficulty_list: #this sorts the blocks in terms of difficulty
         for block in range(num1, num2 +1):
             if difficulty[block] == diff:
                 list_blocks.append(block)       
@@ -125,33 +140,21 @@ def update_graph(num1, num2):
         txs = num_of_transactions[block]
         block_root = []
 
-
-        #using time as a placeholder, it gives block time for each tx which is wrong (4 now!) :)
-        df_total = headers_df[['block_number', 'difficulty', 'number_of_transactions', 'time']]
-
-    # mask = block #try block_num or block_n
-    # df_temp = (
-    #     df_total.loc[mask]
-    #     # .dropna(subset="time")[['number_of_transactions', 'time']] #IMPLEMENT L8R?
-    #     # .fillna("")
-    # ) #0 = block_num, 1 = num tx, 2 = time
-
-
         tx_list = []
         for tx_num in range(1, txs +1):
             block_root.append("Block " + str(block)) #change to str of the block
             tx_list.append("Transaction " + str(tx_num))
-            
-        times_list = [] #increment thru the list later
-        time_i_increment = 0 
-        for i in range(time_i_increment, time_i_increment + txs):
-            times_list.append(time[i])
-        time_i_increment += txs
+
+        
+        fee_list = []
+        for tuple1 in fee_dict[block]:
+            tx_list += [tuple1[0]]
+            fee_list += [tuple1[1]]
 
 
         treemap = go.Treemap(
             labels = tx_list, 
-            values= times_list, 
+            values= fee_list, 
             parents= block_root,
             branchvalues = 'total',
             root_color='lightgrey',
@@ -178,15 +181,15 @@ def update_graph(num1, num2):
                         label=f"{block}"
                     )
                     for block in range(num1, num2 +1) #len(block_num)
-                ],
-                transition=dict(duration=0),
-                x=0,
-                y=0,
-                currentvalue=dict(
-                    font=dict(size=12), prefix='Block: ', visible=True, xanchor='center'
-                ),
-                len=1.0,
-                active=True,
+                ]#,   #IF U want the text of what block it is below the block too
+                # transition=dict(duration=0),
+                # x=0,
+                # y=0,
+                # currentvalue=dict(
+                #     font=dict(size=12), prefix='Block: ', visible=True, xanchor='center'
+                # ),
+                # len=1.0,
+                # active=True,
             )
         ]
 
@@ -234,13 +237,6 @@ def update_graph(num1, num2):
         frames=frames
         )
 
-    # treemap.update_layout(title={'x': 0.5, 'xanchor': 'center', 'font': {'size': 20}})
-    # treemap.update_traces(hovertemplate=
-    #                      "<b>%{customdata[0]}</b><br><br>" +
-    #                      "Percent of Colonies Impacted: %{customdata[1]:.3s}" +
-    #                      "<extra></extra>",
-    #   
-    # print(frames)
     return (figure)
 
 # ------------------------------------------------------------------------

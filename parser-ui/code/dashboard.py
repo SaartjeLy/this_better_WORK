@@ -4,7 +4,8 @@ import dash_core_components as dcc
 # from dash import html, dcc
 import plotly.graph_objects as go
 import pandas as pd
-from dash.dependencies import Input, 
+import plotly.express as px
+from dash.dependencies import Input, Output
 
 # Load data
 df = pd.read_csv('6_blocks_fee_data.csv', index_col=0, parse_dates=True)
