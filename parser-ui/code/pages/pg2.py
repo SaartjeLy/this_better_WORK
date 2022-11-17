@@ -1,33 +1,23 @@
-import csv
-import numbers
-from cuxfilter import charts, DataFrame
-import plotly.graph_objects as go
-import plotly.express as px
-import cudf
-import cuxfilter
-import numpy as np
-import cupy as cp
-import pandas as pd
-import datetime
 import dash
+from dash import dcc, html
+import plotly.graph_objects as go
+import pandas as pd
 from dash import dcc, html, Output, Input, callback, dash_table
 from dash import html
 from dash.dependencies import Input, Output
-
+from dash import dcc
 from datetime import datetime as dt
 from datetime import date
-from dash import dcc
 
 app = dash.Dash(__name__)
+
+dash.register_page(__name__)
 
 headers_df = pd.read_csv("5/Headers.csv")
 block_num = headers_df['block_number']
 num_of_transactions = headers_df['number_of_transactions']
 difficulty = headers_df['difficulty']
 time = headers_df['time']
-first_date_occurance = block_num.ne('8').idxmax()
-
-
 fee_df = pd.read_csv('fee_calendar-time.csv') #, index_col=0, parse_dates=True
 fee = fee_df['fee']
 block_num = fee_df['block_num']
@@ -35,8 +25,6 @@ tx_num = fee_df['tx_num']
 time = fee_df['time']
 last_block = max(block_num)
 
-first_date_occurance = time.ne('2011-10-12').idxmax()
-last_date_occurance = time.where(time=='2011-10-12').last_valid_index()
 
 non_zero_txs = block_num.value_counts()
 fee_dict = {}
@@ -47,42 +35,17 @@ for i in range(len(fee_df)):
     else: #if the block num not in dict
         fee_dict[block_num[i]] = [(tx_num[i], fee[i])]
 
-# ------------------------------------------------------------------------ the tx weighting is in terms of fee at the moment, not with difficulty :)
 
-
-app.layout = html.Div([
+layout = html.Div([
+    dcc.Markdown('*Range available: *' + str(time[0]) + ' to ' + str(time[len(time) - 1])),
     html.Div([
-    
-            # dcc.Checklist(
-            #     id='my_checklist',                      # used to identify component in callback
-            #     options=[
-            #             {'label': 'calendar range', 'value': 'calendar range', 'disabled':False},
-            #             {'label': 'block number range', 'value': 'block number range', 'disabled':False},              
-            #     ],
-            #     value=['calendar range'],    # values chosen by default
-
-            #     className='my_box_container',           # class of the container (div)
-            #     # style={'display':'flex'},             # style of the container (div)
-
-            #     inputClassName='my_box_input',          # class of the <input> checkbox element
-            #     # inputStyle={'cursor':'pointer'},      # style of the <input> checkbox element
-
-            #     labelClassName='my_box_label',          # class of the <label> that wraps the checkbox input and the option's label
-            #     # labelStyle={'background':'#A5D6A7',   # style of the <label> that wraps the checkbox input and the option's label
-            #     #             'padding':'0.5rem 1rem',
-            #     #             'border-radius':'0.5rem'},
-
-            #     #persistence='',                        # stores user's changes to dropdown in memory ( I go over this in detail in Dropdown video: https://youtu.be/UYH_dNSX1DM )
-            #     #persistence_type='',                   # stores user's changes to dropdown in memory ( I go over this in detail in Dropdown video: https://youtu.be/UYH_dNSX1DM )
-            # ),
-        
         dcc.DatePickerRange(  # maybe put a note of what dates are available on screen?
             id='my-date-picker-range',
             day_size = 30,
             min_date_allowed=dt(2009, 1, 3), #Make a max one when we get all the data (max frequently updates with the most recent date data we get
             clearable=True,
-            month_format='MM/DD/YYYY',
-            end_date_placeholder_text='MM/DD/YYYY',
+            month_format='DD/MM/YYYY',
+            end_date_placeholder_text='DD/MM/YYYY',
             start_date=dt(2017, 6, 21).date(),
             end_date=dt(2018, 6, 21).date(),
             
@@ -92,63 +55,37 @@ app.layout = html.Div([
             updatemode='singledate'
             
         ), 
-        
-        dcc.Input(
-            id = 'my_number1',
-            type='number',
-            placeholder='insert number',
-            min = 0, max = last_block, step = 1,
-            minLength = 0, maxLength = len(str(last_block)),
-            autoComplete='on',
-            disabled=False, #remove these falsies ?
-            readOnly=False,
-            required=False,
-            style={'marginRight':'10px'}
-            # later put in persistence='' watch his vid 18:50
-            
-        ),
-        
-        dcc.Input(
-            id = 'my_number2',
-            type='number',
-            placeholder='insert number',
-            debounce=False, #click enter or click out of the box (if you want it to auto change, make it True)
-            min = 0, max = last_block, step = 1,
-            minLength = 0, maxLength = len(str(last_block)),
-            autoComplete='on',
-            disabled=False, #remove these falsies ?
-            readOnly=False,
-            required=False,
-            
-            # later put in persistence='' watch his vid 18:50
-            
-        ),
-
-        ]),
-    
-    # html.Br(),
+    ]),
     html.H3("Bitcoin Block Visualiser", style={'textAlign': 'center'}),
-    dcc.Graph(id="mymap"),
+    dcc.Graph(id="mymap1"),
 ])
 
-# ------------------------------------------------------------------------
-
-@app.callback(
-
-    Output(component_id='mymap', component_property='figure'),
-    # [Input(component_id='my_checklist', component_property='value')],
+@dash.callback(
+    Output(component_id='mymap1', component_property='figure'),
     Input('my-date-picker-range', 'start_date'),
     Input('my-date-picker-range', 'end_date'),
-    Input(component_id='my_number1', component_property='value'),
-    Input(component_id='my_number2', component_property='value'),
+    
 )
 
+def update(start_date, end_date):
+    start_1 = start_date[:4]
+    start_2 = start_date[5:7]
+    start_3 = start_date[8:]
+    end_1 = end_date[:4]
+    end_2 = end_date[5:7]
+    end_3 = end_date[8:]
+    start_date = f'{start_1}-{start_3}-{start_2}'
+    end_date = f'{end_1}-{end_3}-{end_2}'
     
-def update_graph(start_date, end_date, num1, num2):
-    print(start_date, end_date, num1, num2)
+
+    first_date_occurance = time.where(time== start_date).first_valid_index()
+    last_date_occurance = time.where(time== end_date).last_valid_index()
+    num1 = int(block_num[first_date_occurance])
+    #figure out why it's saying none, and why it says 0 when it's any start
+    num2 = int(block_num[last_date_occurance])
+    
     frame0 = None
     frames = []
-
 
     difficulty_list = [] #getting unique diff vals (of blocks)
     for i in range(len(difficulty)):
@@ -226,7 +163,7 @@ def update_graph(start_date, end_date, num1, num2):
 
         #create the layout object with slider parameters
         layout = {
-        'title': "Animation of bitcoin blocks",
+        # 'title': "Animation of bitcoin blocks",
         "updatemenus": [ 
             {'type': 'buttons',
                 'buttons': [
