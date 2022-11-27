@@ -11,12 +11,12 @@ app = dash.Dash(__name__)
 
 dash.register_page(__name__, path='/')
 
-headers_df = pd.read_csv("5/Headers.csv")
+headers_df = pd.read_csv("/home/dev/Documents/Parser/5/Headers.csv")
 block_num = headers_df['block_number']
 num_of_transactions = headers_df['number_of_transactions']
 difficulty = headers_df['difficulty']
 time = headers_df['time']
-fee_df = pd.read_csv('fee_calendar-time.csv') #, index_col=0, parse_dates=True
+fee_df = pd.read_csv('/home/dev/Documents/Parser/fee_calendar-time.csv') #, index_col=0, parse_dates=True
 fee = fee_df['fee']
 block_num = fee_df['block_num']
 tx_num = fee_df['tx_num']
