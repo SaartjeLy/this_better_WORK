@@ -14,8 +14,8 @@ app = dash.Dash(__name__)
 dash.register_page(__name__)
 
 headers_df = pd.read_csv("/home/dev/Documents/Parser/5/Headers.csv")
-block_num = headers_df['block_number']
-num_of_transactions = headers_df['number_of_transactions']
+# block_num = headers_df['block_number']
+# num_of_transactions = headers_df['number_of_transactions']
 difficulty = headers_df['difficulty']
 time = headers_df['time']
 fee_df = pd.read_csv('/home/dev/Documents/Parser/fee_calendar-time.csv') #, index_col=0, parse_dates=True
@@ -105,21 +105,21 @@ def update(start_date, end_date):
                 pass
 
     for block in range(num1, num2 +1): #len(block_num)
-        txs = num_of_transactions[block]
-        block_root = []
-
-        tx_list = []
-        for tx_num in range(1, txs +1):
-            block_root.append("Block " + str(block)) #change to str of the block
-            tx_list.append("Transaction " + str(tx_num))
-
+        block_root = [] 
+        display_txs = [] #the non-zero fees
         
         fee_list = []
-        for tuple1 in fee_dict[block]:
-            tx_list += [tuple1[0]]
+        for tuple1 in fee_dict[block]: #layout in tuple is tx_num, fee
+            display_txs += [tuple1[0]]
             fee_list += [tuple1[1]]
+            
+        tx_list = []
+        for index in range(len(display_txs)):
+            block_root.append("Block " + str(block)) #change to str of the block
+            tx_list.append("Transaction " + str(display_txs[index]))
+            
 
-
+        
         treemap = go.Treemap(
             labels = tx_list, 
             values= fee_list, 

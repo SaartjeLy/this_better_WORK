@@ -5,7 +5,7 @@ app = dash.Dash(__name__, use_pages=True)
 
 app.layout = html.Div(
     [  
-        # main app framework
+        # main app frameworks
         html.Div("Bitcoin block treemap visualiser", style={'fontSize':43, 'textAlign':'center'}),
         html.Div([
             dcc.Link(page['name']+"  |  ", href=page['path'])
